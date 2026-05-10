@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/client.ts","./src/components/chatmessage.tsx","./src/components/layout.tsx","./src/components/proposalcard.tsx","./src/components/statusbadge.tsx","./src/pages/contextform.tsx","./src/pages/home.tsx","./src/pages/negotiation.tsx","./src/pages/validation.tsx"],"version":"5.9.3"}

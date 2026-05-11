@@ -9,6 +9,7 @@ from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.profiles.builder import build_profile
 from sla_renegotiation.storage.in_memory import WorkflowStore
+from sla_renegotiation.storage.sla_seeds import get_sla
 from sla_renegotiation.zopa.calculator import compute_zopa
 
 
@@ -58,11 +59,19 @@ class WorkflowService:
         workflow.provider_profile = build_profile(workflow.provider_form, NegotiationRole.PROVIDER)
 
         workflow.status = RenegotiationStatus.ZOPA_CALCULATION
+
+        slo_definitions = None
+        if workflow.sla_id:
+            sla_template = get_sla(workflow.sla_id)
+            if sla_template:
+                slo_definitions = {slo.metric: slo for slo in sla_template.slos}
+
         workflow.zopa = compute_zopa(
             workflow.client_profile,
             workflow.provider_profile,
             violated_event_type=workflow.violation.event_type if workflow.violation else None,
             agreed_value=workflow.violation.agreed_value if workflow.violation else None,
+            slo_definitions=slo_definitions,
         )
 
         workflow.status = RenegotiationStatus.NEGOTIATING
@@ -70,7 +79,7 @@ class WorkflowService:
         self._store.save(workflow)
         return workflow
 
-    def run_negotiation_round(self, workflow_id: str) -> Workflow | None:
+    async def run_negotiation_round(self, workflow_id: str) -> Workflow | None:
         workflow = self._store.get(workflow_id)
         if (
             not workflow
@@ -87,26 +96,38 @@ class WorkflowService:
 
         history = _format_history(workflow.proposals)
 
-        client_proposal = client_agent.invoke(
+        client_proposal = None
+        async for _, proposal in client_agent.stream_content(
             profile=workflow.client_profile,
             zopa=workflow.zopa,
             history=history,
             current_round=workflow.current_round + 1,
             max_rounds=workflow.max_rounds,
-        )
-        workflow.proposals.append(client_proposal)
+        ):
+            if proposal:
+                client_proposal = proposal
+        if client_proposal:
+            workflow.proposals.append(client_proposal)
         workflow.current_round += 1
 
-        provider_proposal = provider_agent.invoke(
+        provider_proposal = None
+        async for _, proposal in provider_agent.stream_content(
             profile=workflow.provider_profile,
             zopa=workflow.zopa,
             history=_format_history(workflow.proposals),
             current_round=workflow.current_round,
             max_rounds=workflow.max_rounds,
-        )
-        workflow.proposals.append(provider_proposal)
+        ):
+            if proposal:
+                provider_proposal = proposal
+        if provider_proposal:
+            workflow.proposals.append(provider_proposal)
 
-        if check_agreement(client_proposal, provider_proposal):
+        if (
+            client_proposal
+            and provider_proposal
+            and check_agreement(client_proposal, provider_proposal)
+        ):
             workflow.status = RenegotiationStatus.AGREED
         elif workflow.current_round >= workflow.max_rounds:
             workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED

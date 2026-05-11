@@ -1,4 +1,8 @@
-from sla_renegotiation.llm.prompts import PROFILE_BUILDER_SYSTEM, NEGOTIATION_AGENT_SYSTEM, RC_GENERATOR_SYSTEM
+from sla_renegotiation.llm.prompts import (
+    PROFILE_BUILDER_SYSTEM,
+    NEGOTIATION_AGENT_SYSTEM,
+    RC_GENERATOR_SYSTEM,
+)
 
 
 def test_profile_builder_system_not_empty():

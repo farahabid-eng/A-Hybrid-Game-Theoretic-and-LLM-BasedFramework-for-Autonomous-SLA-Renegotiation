@@ -22,7 +22,10 @@ def test_acceptable_triggers():
 
 
 def test_no_agreement():
-    assert not check_agreement(_proposal("Propose reducing latency to 110ms"), _proposal("Propose 120ms latency with 5% cost increase"))
+    assert not check_agreement(
+        _proposal("Propose reducing latency to 110ms"),
+        _proposal("Propose 120ms latency with 5% cost increase"),
+    )
     assert not check_agreement(_proposal("Need better terms"), _proposal("Cannot accept that"))
 
 

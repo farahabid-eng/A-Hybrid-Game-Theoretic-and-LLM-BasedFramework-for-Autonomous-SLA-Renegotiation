@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from sla_renegotiation.api.dependencies import get_workflow_service
-from sla_renegotiation.api.schemas import SubmitClientFormRequest, SubmitProviderFormRequest, WorkflowResponse
+from sla_renegotiation.api.schemas import (
+    SubmitClientFormRequest,
+    SubmitProviderFormRequest,
+    WorkflowResponse,
+)
 from sla_renegotiation.context_gathering.forms import ClientForm, ProviderForm
 from sla_renegotiation.services.workflow import WorkflowService
 
@@ -36,6 +40,7 @@ def submit_provider_context(
 
 def _to_response(w: object) -> WorkflowResponse:
     from sla_renegotiation.api.schemas import WorkflowResponse as WR
+
     return WR(
         id=w.id,
         status=w.status.value,

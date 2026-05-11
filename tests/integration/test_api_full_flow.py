@@ -12,11 +12,14 @@ def test_health():
 
 
 def test_create_and_get_workflow():
-    resp = client.post("/workflows", json={
-        "event_type": "latency_violation",
-        "observed_value": 150.0,
-        "agreed_value": 100.0,
-    })
+    resp = client.post(
+        "/workflows",
+        json={
+            "event_type": "latency_violation",
+            "observed_value": 150.0,
+            "agreed_value": 100.0,
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "context_gathering"
@@ -29,22 +32,28 @@ def test_create_and_get_workflow():
 
 
 def test_submit_client_context():
-    resp = client.post("/workflows", json={
-        "event_type": "latency_violation",
-        "observed_value": 200.0,
-        "agreed_value": 100.0,
-        "unit": "ms",
-    })
+    resp = client.post(
+        "/workflows",
+        json={
+            "event_type": "latency_violation",
+            "observed_value": 200.0,
+            "agreed_value": 100.0,
+            "unit": "ms",
+        },
+    )
     wf_id = resp.json()["id"]
 
-    resp = client.post(f"/workflows/{wf_id}/context/client", json={
-        "business_context": "Gaming platform",
-        "objectives": ["Reduce latency"],
-        "priorities": {"latency": 0.6, "availability": 0.4},
-        "flexibility_margins": {"latency": 0.2, "availability": 0.1},
-        "constraints": ["Max 200ms"],
+    resp = client.post(
+        f"/workflows/{wf_id}/context/client",
+        json={
+            "business_context": "Gaming platform",
+            "objectives": ["Reduce latency"],
+            "priorities": {"latency": 0.6, "availability": 0.4},
+            "flexibility_margins": {"latency": 0.2, "availability": 0.1},
+            "constraints": ["Max 200ms"],
             "batna": 150.0,
-    })
+        },
+    )
     assert resp.status_code == 200
 
 

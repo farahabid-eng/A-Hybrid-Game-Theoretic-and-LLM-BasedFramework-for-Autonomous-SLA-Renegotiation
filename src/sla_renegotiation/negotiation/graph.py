@@ -1,45 +1,48 @@
 from langgraph.graph import END, StateGraph
 
-from sla_renegotiation.domain.enums import RenegotiationStatus
 from sla_renegotiation.domain.models import Proposal
 from sla_renegotiation.negotiation.state import NegotiationState
 
 from .agents import client_agent, provider_agent
 
 
-def client_node(state: NegotiationState) -> dict:
-    proposal = client_agent.invoke(
+async def client_node(state: NegotiationState) -> dict:
+    async for _, proposal in client_agent.stream_content(
         profile=state["client_profile"],
         zopa=state["zopa"],
         history=_format_history(state["proposals"]),
         current_round=state["current_round"] + 1,
         max_rounds=state["max_rounds"],
-    )
-    return {
-        "proposals": [proposal],
-        "current_round": state["current_round"] + 1,
-        "next_role": "provider",
-    }
+    ):
+        if proposal:
+            return {
+                "proposals": [proposal],
+                "current_round": state["current_round"] + 1,
+                "next_role": "provider",
+            }
+    return {}
 
 
-def provider_node(state: NegotiationState) -> dict:
-    proposal = provider_agent.invoke(
+async def provider_node(state: NegotiationState) -> dict:
+    async for _, proposal in provider_agent.stream_content(
         profile=state["provider_profile"],
         zopa=state["zopa"],
         history=_format_history(state["proposals"]),
         current_round=state["current_round"],
         max_rounds=state["max_rounds"],
-    )
-    return {
-        "proposals": [proposal],
-        "next_role": "client",
-    }
+    ):
+        if proposal:
+            return {
+                "proposals": [proposal],
+                "next_role": "client",
+            }
+    return {}
 
 
 def should_continue(state: NegotiationState) -> str:
     if state["current_round"] >= state["max_rounds"]:
         return "end_max_rounds"
-    if state["agreement_reached"]:
+    if state.get("agreement_reached"):
         return "end_agreed"
     return "continue"
 

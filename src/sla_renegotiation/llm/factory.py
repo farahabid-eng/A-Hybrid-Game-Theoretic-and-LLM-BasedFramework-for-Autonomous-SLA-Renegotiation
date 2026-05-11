@@ -23,7 +23,9 @@ def _resolve_api_key(model_id: str) -> str | None:
     model_lower = model_id.lower()
     if settings.mistralai_api_key and "mistral" in model_lower:
         return settings.mistralai_api_key
-    if settings.openai_api_key and ("gpt" in model_lower or "o1" in model_lower or "o3" in model_lower):
+    if settings.openai_api_key and (
+        "gpt" in model_lower or "o1" in model_lower or "o3" in model_lower
+    ):
         return settings.openai_api_key
     if settings.anthropic_api_key and ("claude" in model_lower or "anthropic" in model_lower):
         return settings.anthropic_api_key

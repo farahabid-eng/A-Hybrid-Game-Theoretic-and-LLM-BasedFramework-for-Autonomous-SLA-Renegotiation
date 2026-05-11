@@ -25,11 +25,11 @@ def run_profiling(
 
 
 @router.post("/round", response_model=WorkflowResponse)
-def run_round(
+async def run_round(
     workflow_id: str,
     svc: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowResponse:
-    workflow = svc.run_negotiation_round(workflow_id)
+    workflow = await svc.run_negotiation_round(workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return _to_response(workflow)
@@ -54,26 +54,36 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
         if data.get("type") != "start":
             return
 
-        await websocket.send_json({"type": "profiling.progress", "status": "Building client profile..."})
+        await websocket.send_json(
+            {"type": "profiling.progress", "status": "Building client profile..."}
+        )
         workflow = service.run_profiling(workflow_id)
         if not workflow:
             await websocket.send_json({"type": "error", "detail": "Profiling failed"})
             return
 
-        await websocket.send_json({
-            "type": "profiling.complete",
-            "client_profile": workflow.client_profile.model_dump() if workflow.client_profile else None,
-            "provider_profile": workflow.provider_profile.model_dump() if workflow.provider_profile else None,
-            "zopa": workflow.zopa.model_dump() if workflow.zopa else None,
-        })
+        await websocket.send_json(
+            {
+                "type": "profiling.complete",
+                "client_profile": workflow.client_profile.model_dump()
+                if workflow.client_profile
+                else None,
+                "provider_profile": workflow.provider_profile.model_dump()
+                if workflow.provider_profile
+                else None,
+                "zopa": workflow.zopa.model_dump() if workflow.zopa else None,
+            }
+        )
 
         while workflow.current_round < workflow.max_rounds:
             round_num = workflow.current_round + 1
 
-            await websocket.send_json({
-                "type": "profiling.progress",
-                "status": f"Client agent is generating proposal (round {round_num})...",
-            })
+            await websocket.send_json(
+                {
+                    "type": "profiling.progress",
+                    "status": f"Client agent is generating proposal (round {round_num})...",
+                }
+            )
 
             history = _format_history(workflow.proposals)
 
@@ -85,27 +95,33 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                 max_rounds=workflow.max_rounds,
             ):
                 if token:
-                    await websocket.send_json({
-                        "type": "negotiation.token",
-                        "role": "client",
-                        "token": token,
-                        "round": round_num,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "negotiation.token",
+                            "role": "client",
+                            "token": token,
+                            "round": round_num,
+                        }
+                    )
                 else:
                     workflow.proposals.append(proposal)
-                    await websocket.send_json({
-                        "type": "negotiation.token.done",
-                        "role": "client",
-                        "round": round_num,
-                        "proposal": proposal.model_dump(),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "negotiation.token.done",
+                            "role": "client",
+                            "round": round_num,
+                            "proposal": proposal.model_dump(),
+                        }
+                    )
 
             workflow.current_round = round_num
 
-            await websocket.send_json({
-                "type": "profiling.progress",
-                "status": f"Provider agent is generating proposal (round {round_num})...",
-            })
+            await websocket.send_json(
+                {
+                    "type": "profiling.progress",
+                    "status": f"Provider agent is generating proposal (round {round_num})...",
+                }
+            )
 
             async for token, proposal in provider_agent.stream_content(
                 profile=workflow.provider_profile,
@@ -115,24 +131,32 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                 max_rounds=workflow.max_rounds,
             ):
                 if token:
-                    await websocket.send_json({
-                        "type": "negotiation.token",
-                        "role": "provider",
-                        "token": token,
-                        "round": round_num,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "negotiation.token",
+                            "role": "provider",
+                            "token": token,
+                            "round": round_num,
+                        }
+                    )
                 else:
                     workflow.proposals.append(proposal)
-                    await websocket.send_json({
-                        "type": "negotiation.token.done",
-                        "role": "provider",
-                        "round": round_num,
-                        "proposal": proposal.model_dump(),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "negotiation.token.done",
+                            "role": "provider",
+                            "round": round_num,
+                            "proposal": proposal.model_dump(),
+                        }
+                    )
 
-            proposals = workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
+            proposals = (
+                workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
+            )
 
-            if len(workflow.proposals) >= 2 and check_agreement(workflow.proposals[-2], workflow.proposals[-1]):
+            if len(workflow.proposals) >= 2 and check_agreement(
+                workflow.proposals[-2], workflow.proposals[-1]
+            ):
                 workflow.status = RenegotiationStatus.AGREED
             elif round_num >= workflow.max_rounds:
                 workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
@@ -142,23 +166,32 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
             workflow.updated_at = datetime.now().isoformat()
             store.save(workflow)
 
-            await websocket.send_json({
-                "type": "negotiation.round",
-                "round": round_num,
-                "proposals": [p.model_dump() for p in proposals],
-                "status": workflow.status.value,
-            })
+            await websocket.send_json(
+                {
+                    "type": "negotiation.round",
+                    "round": round_num,
+                    "proposals": [p.model_dump() for p in proposals],
+                    "status": workflow.status.value,
+                }
+            )
 
-            if workflow.status in (RenegotiationStatus.MAX_ROUNDS_REACHED, RenegotiationStatus.AGREED, RenegotiationStatus.FAILED, RenegotiationStatus.DEADLOCK):
+            if workflow.status in (
+                RenegotiationStatus.MAX_ROUNDS_REACHED,
+                RenegotiationStatus.AGREED,
+                RenegotiationStatus.FAILED,
+                RenegotiationStatus.DEADLOCK,
+            ):
                 break
 
         workflow = service.finalize(workflow_id)
         if workflow and workflow.rc:
-            await websocket.send_json({
-                "type": "negotiation.complete",
-                "status": workflow.status.value,
-                "rc": workflow.rc.model_dump(),
-            })
+            await websocket.send_json(
+                {
+                    "type": "negotiation.complete",
+                    "status": workflow.status.value,
+                    "rc": workflow.rc.model_dump(),
+                }
+            )
 
     except WebSocketDisconnect:
         pass
@@ -166,6 +199,7 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
 
 def _to_response(w: object) -> WorkflowResponse:
     from sla_renegotiation.api.schemas import WorkflowResponse as WR
+
     return WR(
         id=w.id,
         status=w.status.value,

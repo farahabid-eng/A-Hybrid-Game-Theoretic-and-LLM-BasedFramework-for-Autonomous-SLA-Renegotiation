@@ -33,6 +33,7 @@ def reject_rc(
 
 def _to_response(w: object) -> WorkflowResponse:
     from sla_renegotiation.api.schemas import WorkflowResponse as WR
+
     return WR(
         id=w.id,
         status=w.status.value,

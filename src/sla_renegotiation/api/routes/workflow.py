@@ -11,7 +11,9 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
 @router.post("", response_model=WorkflowResponse)
-def create_workflow(body: CreateWorkflowRequest, svc: WorkflowService = Depends(get_workflow_service)) -> WorkflowResponse:
+def create_workflow(
+    body: CreateWorkflowRequest, svc: WorkflowService = Depends(get_workflow_service)
+) -> WorkflowResponse:
     agreed_value = body.agreed_value
     unit = body.unit
 
@@ -29,7 +31,10 @@ def create_workflow(body: CreateWorkflowRequest, svc: WorkflowService = Depends(
                 unit = slo.unit
 
     if agreed_value is None:
-        raise HTTPException(status_code=400, detail="agreed_value is required when no matching SLO is found in the selected SLA")
+        raise HTTPException(
+            status_code=400,
+            detail="agreed_value is required when no matching SLO is found in the selected SLA",
+        )
 
     violation = Violation(
         event_type=EventType(body.event_type),
@@ -49,10 +54,13 @@ def list_workflows(svc: WorkflowService = Depends(get_workflow_service)) -> list
 
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
-def get_workflow(workflow_id: str, svc: WorkflowService = Depends(get_workflow_service)) -> WorkflowResponse:
+def get_workflow(
+    workflow_id: str, svc: WorkflowService = Depends(get_workflow_service)
+) -> WorkflowResponse:
     workflow = svc.get_workflow(workflow_id)
     if not workflow:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Workflow not found")
     return _to_response(workflow)
 

@@ -1,14 +1,36 @@
-import pytest
-
 from sla_renegotiation.domain.enums import EventType
-from sla_renegotiation.domain.models import StakeholderProfile
+from sla_renegotiation.domain.models import SLODefinition, StakeholderProfile
 from sla_renegotiation.zopa.calculator import compute_zopa
 from tests.conftest import sample_client_profile, sample_provider_profile  # noqa: F401
 
 
+def _slo(metric: str, target: float, unit: str = "") -> dict[str, SLODefinition]:
+    event_map = {
+        "latency": EventType.LATENCY_VIOLATION,
+        "availability": EventType.AVAILABILITY_VIOLATION,
+        "cost": EventType.COST_OVERAGE,
+    }
+    return {
+        metric: SLODefinition(
+            metric=metric,
+            target_value=target,
+            unit=unit,
+            description="",
+            event_type=event_map.get(metric, EventType.LATENCY_VIOLATION),
+        )
+    }
+
+
 def test_zopa_has_overlapping_metrics(sample_client_profile, sample_provider_profile):  # noqa: F811
-    zopa = compute_zopa(sample_client_profile, sample_provider_profile)
+    slo_defs = _slo("latency", 100.0, "ms") | _slo("availability", 99.9, "%")
+    zopa = compute_zopa(
+        sample_client_profile,
+        sample_provider_profile,
+        slo_definitions=slo_defs,
+    )
     assert len(zopa.feasible_range_per_metric) > 0
+    assert zopa.units.get("latency") == "ms"
+    assert "availability" in zopa.current_targets
 
 
 def test_zopa_no_overlap():
@@ -30,7 +52,11 @@ def test_zopa_no_overlap():
         batna=None,
         context_description="",
     )
-    zopa = compute_zopa(client, provider)
+    zopa = compute_zopa(
+        client,
+        provider,
+        slo_definitions=_slo("latency", 100.0),
+    )
     assert len(zopa.feasible_range_per_metric) == 0
 
 
@@ -60,8 +86,8 @@ def test_zopa_client_batna_caps_upper_for_low_is_better():
         agreed_value=300.0,
     )
     lo, hi = zopa.feasible_range_per_metric["latency"]
-    assert lo == 1.0
-    assert hi == round(500.0 / 300.0, 4)
+    assert lo == 300.0
+    assert hi == 500.0
 
 
 def test_zopa_batna_interval_takes_precedence_over_flex_margins():
@@ -90,5 +116,5 @@ def test_zopa_batna_interval_takes_precedence_over_flex_margins():
         agreed_value=300.0,
     )
     lo, hi = zopa.feasible_range_per_metric["latency"]
-    assert lo == round(400.0 / 300.0, 4)
-    assert hi == round(500.0 / 300.0, 4)
+    assert lo == 400.0
+    assert hi == 500.0

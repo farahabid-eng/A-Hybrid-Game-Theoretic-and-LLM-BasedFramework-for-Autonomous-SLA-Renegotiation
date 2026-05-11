@@ -19,7 +19,7 @@ uv run python examples/run_cli.py  # headless end-to-end (needs API key)
 ## Tests
 
 ```bash
-uv run pytest                            # all 13 tests
+uv run pytest                            # all 18 tests
 uv run pytest tests/unit/                # unit only
 uv run pytest tests/integration/         # integration (TestClient, no real LLM)
 ```
@@ -43,7 +43,7 @@ Order: `ruff check → ruff format --check → mypy → tsc --noEmit`
 - **Frontend**: `ui/` — React 19 + Vite + Tailwind v4, routes in `App.tsx`
 - **No DB**: in-memory `WorkflowStore` (dict), lost on restart
 - **No PostCSS/autoprefixer**: Tailwind v4 via `@tailwindcss/vite` plugin, index.css is `@import "tailwindcss"`
-- **Vite proxies**: `/workflows`, `/ws`, `/health` → `localhost:8000`
+- **Vite proxies**: removed — set `VITE_API_URL=http://localhost:8000` in `ui/.env` instead (both HTTP & WS derive from it)
 
 ## Config & LLM
 
@@ -67,6 +67,7 @@ Order: `ruff check → ruff format --check → mypy → tsc --noEmit`
 - **LangGraph graph** (`negotiation/graph.py`) exists but is NOT used by the service layer or WS handler — it's standalone
 - `NegotiationAgent` uses lazy init: chain built on first `invoke()`/`stream_content()` call
 - Agent prompt enforces: 1-2 sentence proposals, no greetings/meta-commentary, no JSON in streaming mode
+- **Early agreement detection** in `negotiation/agreement.py`: keyword-based (`"I accept"`, `"Agreed"`, `"acceptable"`) with negation guard — breaks the round loop when detected
 - `tone` field on `ClientForm`/`StakeholderProfile` flows through profile JSON in the prompt (not a separate template variable)
 
 ## Code Style

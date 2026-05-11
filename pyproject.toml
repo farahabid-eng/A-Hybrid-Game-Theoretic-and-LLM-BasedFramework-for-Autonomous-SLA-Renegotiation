@@ -20,7 +20,8 @@ dependencies = [
 openai = ["langchain-openai>=0.3.0"]
 anthropic = ["langchain-anthropic>=0.3.0"]
 mistral = ["langchain-mistralai>=0.3.0"]
-all = ["sla-renegotiation[openai,anthropic,mistral]"]
+nvidia = ["langchain-nvidia-ai-endpoints>=0.4.0"]
+all = ["sla-renegotiation[openai,anthropic,mistral,nvidia]"]
 
 [project.scripts]
 sla-renegotiation = "sla_renegotiation.main:main"

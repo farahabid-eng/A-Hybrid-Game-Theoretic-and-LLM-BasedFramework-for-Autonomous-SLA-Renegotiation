@@ -21,6 +21,7 @@ export default function Negotiation() {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const connectedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function Negotiation() {
     ws.onopen = () => {
       if (ws !== wsRef.current) return;
       clearTimeout(timeout);
+      connectedRef.current = true;
       setConnected(true);
       ws.send(JSON.stringify({ type: "start" }));
     };
@@ -54,7 +56,7 @@ export default function Negotiation() {
     ws.onclose = () => {
       if (ws !== wsRef.current) return;
       clearTimeout(timeout);
-      if (!connected) {
+      if (!connectedRef.current) {
         setError("Connection closed before negotiation could start.");
       }
     };

@@ -18,6 +18,21 @@ class SLO(BaseModel):
     description: str = ""
 
 
+class SLODefinition(BaseModel):
+    metric: str
+    target_value: float
+    unit: str
+    description: str
+    event_type: EventType
+
+
+class SLATemplate(BaseModel):
+    id: str = Field(default_factory=lambda: uuid4().hex[:12])
+    name: str
+    description: str
+    slos: list[SLODefinition]
+
+
 class Violation(BaseModel):
     event_type: EventType
     observed_value: float
@@ -72,6 +87,7 @@ class Workflow(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex[:12])
     status: RenegotiationStatus = RenegotiationStatus.PENDING
     violation: Violation | None = None
+    sla_id: str | None = None
     max_rounds: int = 10
     client_form: BaseModel | None = None
     provider_form: BaseModel | None = None

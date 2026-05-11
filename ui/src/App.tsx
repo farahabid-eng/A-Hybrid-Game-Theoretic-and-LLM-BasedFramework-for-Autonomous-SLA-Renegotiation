@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
+import SLAs from "./pages/SLAs";
 import ContextForm from "./pages/ContextForm";
 import Negotiation from "./pages/Negotiation";
 import Validation from "./pages/Validation";
@@ -10,6 +11,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/slas" element={<SLAs />} />
         <Route path="/workflows/:id/context" element={<ContextForm />} />
         <Route path="/workflows/:id/negotiation" element={<Negotiation />} />
         <Route path="/workflows/:id/validation" element={<Validation />} />

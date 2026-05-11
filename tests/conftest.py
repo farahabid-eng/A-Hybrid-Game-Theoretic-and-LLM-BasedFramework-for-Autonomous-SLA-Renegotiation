@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pytest
 from langchain_core.messages import AIMessage
 
@@ -9,7 +7,6 @@ from sla_renegotiation.domain.models import (
     StakeholderProfile,
     Violation,
     Workflow,
-    ZOPA,
 )
 from sla_renegotiation.storage.in_memory import WorkflowStore
 
@@ -79,10 +76,11 @@ def sample_provider_profile():
 @pytest.fixture
 def sample_zopa(sample_client_profile, sample_provider_profile, sample_violation):
     from sla_renegotiation.zopa.calculator import compute_zopa
+
     return compute_zopa(
         sample_client_profile,
         sample_provider_profile,
-        violated_metric=sample_violation.metric,
+        violated_event_type=sample_violation.event_type,
         agreed_value=sample_violation.agreed_value,
     )
 

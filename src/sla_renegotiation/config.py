@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     mistralai_api_key: str = "mn6HBPtSTcOkOcPSyfthImylIJtTHtpb"
+    nvidia_api_key: str = ""
 
     client_model: str = "mistral-large-latest"
     provider_model: str = "mistral-large-latest"

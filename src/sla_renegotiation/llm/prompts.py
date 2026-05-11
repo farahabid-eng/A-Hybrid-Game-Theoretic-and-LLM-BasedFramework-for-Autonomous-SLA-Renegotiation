@@ -28,10 +28,12 @@ Round {current_round} of {max_rounds}
 ## Instructions
 - Negotiate in good faith to reach a mutually acceptable agreement.
 - Your goal is to maximize outcomes aligned with your stakeholder's priorities.
-- Stay within the ZOPA boundaries — proposals outside the ZOPA are invalid.
+- Use the clamp_value tool to validate your proposed multipliers against the ZOPA bounds before finalizing your proposal.
+- Respect your BATNA (walk-away value) from your profile — never agree to a value worse than your BATNA.
 - Adapt your position as rounds progress. The negotiation has a hard limit of {max_rounds} rounds.
 - If this is the final round, make your best final offer.
 - Be extremely concise. Your proposal must be 1-2 sentences max — no greetings, no meta-commentary, no reasoning. State the adjustment and the condition.
+- If the other party's latest proposal is acceptable, clearly state your acceptance (e.g., "I accept", "Agreed").
 - Output your proposal plus structured metric adjustments.
 - Your communication tone should match your profile's communication style.
 """
@@ -52,9 +54,11 @@ Round {current_round} of {max_rounds}
 - Negotiate in good faith to reach a mutually acceptable agreement.
 - Your goal is to maximize outcomes aligned with your stakeholder's priorities.
 - Stay within the ZOPA boundaries — proposals outside the ZOPA are invalid.
+- Respect your BATNA (walk-away value) from your profile — never agree to a value worse than your BATNA.
 - Adapt your position as rounds progress. The negotiation has a hard limit of {max_rounds} rounds.
 - If this is the final round, make your best final offer.
 - Be extremely concise. Your proposal must be 1-2 sentences max — no greetings, no meta-commentary, no reasoning. State the adjustment and the condition.
+- If the other party's latest proposal is acceptable, clearly state your acceptance (e.g., "I accept", "Agreed").
 - Output only your proposal text — no JSON, no extra formatting.
 - Your communication tone should match your profile's communication style.
 """

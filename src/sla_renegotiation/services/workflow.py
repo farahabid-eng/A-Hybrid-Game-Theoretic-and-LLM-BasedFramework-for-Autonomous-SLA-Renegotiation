@@ -5,6 +5,7 @@ from sla_renegotiation.context_gathering.forms import ClientForm, ProviderForm
 from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
 from sla_renegotiation.domain.models import Violation, Workflow
 from sla_renegotiation.negotiation.agents import client_agent, provider_agent
+from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.profiles.builder import build_profile
 from sla_renegotiation.storage.in_memory import WorkflowStore
@@ -15,9 +16,12 @@ class WorkflowService:
     def __init__(self, store: WorkflowStore) -> None:
         self._store = store
 
-    def create_workflow(self, violation: Violation, max_rounds: int = 10) -> Workflow:
+    def create_workflow(
+        self, violation: Violation, sla_id: str | None = None, max_rounds: int = 10
+    ) -> Workflow:
         workflow = Workflow(
             violation=violation,
+            sla_id=sla_id,
             max_rounds=max_rounds,
             status=RenegotiationStatus.CONTEXT_GATHERING,
         )
@@ -57,7 +61,7 @@ class WorkflowService:
         workflow.zopa = compute_zopa(
             workflow.client_profile,
             workflow.provider_profile,
-            violated_metric=workflow.violation.metric if workflow.violation else None,
+            violated_event_type=workflow.violation.event_type if workflow.violation else None,
             agreed_value=workflow.violation.agreed_value if workflow.violation else None,
         )
 
@@ -68,7 +72,12 @@ class WorkflowService:
 
     def run_negotiation_round(self, workflow_id: str) -> Workflow | None:
         workflow = self._store.get(workflow_id)
-        if not workflow or not workflow.client_profile or not workflow.provider_profile or not workflow.zopa:
+        if (
+            not workflow
+            or not workflow.client_profile
+            or not workflow.provider_profile
+            or not workflow.zopa
+        ):
             return None
 
         if workflow.current_round >= workflow.max_rounds:
@@ -97,7 +106,9 @@ class WorkflowService:
         )
         workflow.proposals.append(provider_proposal)
 
-        if workflow.current_round >= workflow.max_rounds:
+        if check_agreement(client_proposal, provider_proposal):
+            workflow.status = RenegotiationStatus.AGREED
+        elif workflow.current_round >= workflow.max_rounds:
             workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
         else:
             workflow.status = RenegotiationStatus.NEGOTIATING

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from sla_renegotiation.api.routes import context, negotiation, validation, workflow
+from sla_renegotiation.api.routes import context, negotiation, sla, validation, workflow
 
 
 @asynccontextmanager
@@ -21,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(sla.router)
 app.include_router(workflow.router)
 app.include_router(context.router)
 app.include_router(negotiation.router)

@@ -30,6 +30,13 @@ class EventType(StrEnum):
     RESOURCE_EXHAUSTION = "resource_exhaustion"
     BUSINESS_REQUIREMENT_CHANGE = "business_requirement_change"
 
+    @property
+    def is_low_better(self) -> bool:
+        return self in (
+            self.LATENCY_VIOLATION,
+            self.ERROR_RATE_VIOLATION,
+        )
+
 
 class NegotiationRole(StrEnum):
     CLIENT = "client"

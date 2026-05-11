@@ -6,6 +6,7 @@ from sla_renegotiation.api.dependencies import get_workflow_service
 from sla_renegotiation.api.schemas import WorkflowResponse
 from sla_renegotiation.domain.enums import RenegotiationStatus
 from sla_renegotiation.negotiation.agents import client_agent, provider_agent
+from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.services.workflow import WorkflowService
 
@@ -131,7 +132,9 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
 
             proposals = workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
 
-            if round_num >= workflow.max_rounds:
+            if len(workflow.proposals) >= 2 and check_agreement(workflow.proposals[-2], workflow.proposals[-1]):
+                workflow.status = RenegotiationStatus.AGREED
+            elif round_num >= workflow.max_rounds:
                 workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
             else:
                 workflow.status = RenegotiationStatus.NEGOTIATING

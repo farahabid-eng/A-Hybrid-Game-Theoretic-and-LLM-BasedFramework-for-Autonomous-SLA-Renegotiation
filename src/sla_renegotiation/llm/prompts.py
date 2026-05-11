@@ -28,7 +28,7 @@ Round {current_round} of {max_rounds}
 ## Instructions
 - Negotiate in good faith to reach a mutually acceptable agreement.
 - Your goal is to maximize outcomes aligned with your stakeholder's priorities.
-- Use the validate_metric_adjustment tool to ensure your proposed values stay within the ZOPA bounds.
+- For each metric you adjust, you MUST call the validate_metric_adjustment(metric="<name>", proposed_value=<value>, lower_bound=<lo>, upper_bound=<hi>) tool. Use the ZOPA bounds shown above.
 - Respect your BATNA (walk-away value) from your profile — never agree to a value worse than your BATNA.
 - Adapt your position as rounds progress. The negotiation has a hard limit of {max_rounds} rounds.
 - If this is the final round, make your best final offer.
@@ -53,7 +53,7 @@ Round {current_round} of {max_rounds}
 ## Instructions
 - Negotiate in good faith to reach a mutually acceptable agreement.
 - Your goal is to maximize outcomes aligned with your stakeholder's priorities.
-- Use the validate_metric_adjustment tool to ensure your proposed values stay within the ZOPA bounds.
+- For each metric you adjust, you MUST call the validate_metric_adjustment(metric="<name>", proposed_value=<value>, lower_bound=<lo>, upper_bound=<hi>) tool. Use the ZOPA bounds shown above.
 - Respect your BATNA (walk-away value) from your profile — never agree to a value worse than your BATNA.
 - Adapt your position as rounds progress. The negotiation has a hard limit of {max_rounds} rounds.
 - If this is the final round, make your best final offer.

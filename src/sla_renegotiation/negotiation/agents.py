@@ -9,6 +9,8 @@ from sla_renegotiation.llm.factory import build_model
 from sla_renegotiation.llm.prompts import NEGOTIATION_STREAM_SYSTEM
 from sla_renegotiation.negotiation.tools import validate_metric_adjustment
 
+_SAFE_TOOL_NAMES = {"validate_metric_adjustment"}
+
 
 class NegotiationAgent:
     def __init__(self, role: str) -> None:
@@ -52,6 +54,7 @@ class NegotiationAgent:
             "Generate your proposal based on the above context."
         )
         full_text = ""
+        accumulated_message: AIMessageChunk | None = None
         async for chunk in agent.astream(
             {"messages": [{"role": "user", "content": user_content}]},
             stream_mode=["messages"],
@@ -62,16 +65,26 @@ class NegotiationAgent:
             token, _ = chunk["data"]
             if not isinstance(token, AIMessageChunk):
                 continue
+            accumulated_message = (accumulated_message + token) if accumulated_message else token
             text = token.content
             if not isinstance(text, str) or not text:
                 continue
             full_text += text
             yield (text, None)
 
+        adjustments: dict[str, float] = {}
+        if accumulated_message is not None:
+            for tc in accumulated_message.tool_calls:
+                if tc.get("name") in _SAFE_TOOL_NAMES:
+                    args = tc.get("args", {})
+                    if "metric" in args and "proposed_value" in args:
+                        adjustments[args["metric"]] = args["proposed_value"]
+
         proposal = Proposal(
             round_number=current_round,
             role=NegotiationRole(self.role),
             content=full_text.strip(),
+            structured_adjustments=adjustments or None,
         )
         yield ("", proposal)
 

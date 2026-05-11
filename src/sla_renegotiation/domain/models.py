@@ -62,6 +62,7 @@ class ZOPA(BaseModel):
     feasible_range_per_metric: dict[str, tuple[float, float]]
     units: dict[str, str] = Field(default_factory=dict)
     current_targets: dict[str, float] = Field(default_factory=dict)
+    low_is_better: dict[str, bool] = Field(default_factory=dict)
     description: str
 
 

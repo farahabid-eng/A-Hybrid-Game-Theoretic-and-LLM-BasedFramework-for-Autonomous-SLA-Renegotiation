@@ -10,7 +10,7 @@ from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.profiles.builder import build_profile
 from sla_renegotiation.storage.in_memory import WorkflowStore
 from sla_renegotiation.storage.sla_seeds import get_sla
-from sla_renegotiation.zopa.calculator import compute_zopa
+from sla_renegotiation.zopa.calculator import compute_zopa, narrow_zopa
 
 
 class WorkflowService:
@@ -108,6 +108,7 @@ class WorkflowService:
                 client_proposal = proposal
         if client_proposal:
             workflow.proposals.append(client_proposal)
+            workflow.zopa = narrow_zopa(workflow.zopa, client_proposal)
         workflow.current_round += 1
 
         provider_proposal = None
@@ -122,6 +123,7 @@ class WorkflowService:
                 provider_proposal = proposal
         if provider_proposal:
             workflow.proposals.append(provider_proposal)
+            workflow.zopa = narrow_zopa(workflow.zopa, provider_proposal)
 
         if (
             client_proposal

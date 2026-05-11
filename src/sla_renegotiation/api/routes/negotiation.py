@@ -9,6 +9,7 @@ from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.services.workflow import WorkflowService
+from sla_renegotiation.zopa.calculator import narrow_zopa
 
 router = APIRouter(prefix="/workflows/{workflow_id}/negotiation", tags=["negotiation"])
 
@@ -104,7 +105,10 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                         }
                     )
                 else:
+                    assert proposal is not None
                     workflow.proposals.append(proposal)
+                    if workflow.zopa:
+                        workflow.zopa = narrow_zopa(workflow.zopa, proposal)
                     await websocket.send_json(
                         {
                             "type": "negotiation.token.done",
@@ -140,7 +144,10 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                         }
                     )
                 else:
+                    assert proposal is not None
                     workflow.proposals.append(proposal)
+                    if workflow.zopa:
+                        workflow.zopa = narrow_zopa(workflow.zopa, proposal)
                     await websocket.send_json(
                         {
                             "type": "negotiation.token.done",

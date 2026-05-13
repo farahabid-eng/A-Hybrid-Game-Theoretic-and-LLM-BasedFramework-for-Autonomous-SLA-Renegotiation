@@ -16,7 +16,11 @@ _MODEL_KEY_MAP: dict[str, str] = {
 
 def _is_nvidia_model(model_id: str) -> bool:
     model_lower = model_id.lower()
-    return "nvidia" in model_lower or model_lower.startswith("nvapi-")
+    return (
+        "nvidia" in model_lower
+        or model_lower.startswith("nvapi-")
+        or model_lower.startswith("z-ai/")
+    )
 
 
 def _resolve_api_key(model_id: str) -> str | None:
@@ -42,6 +46,8 @@ def build_model(
     api_key = _resolve_api_key(model_id)
     if api_key:
         kwargs["api_key"] = api_key
-    if model_kwargs and _is_nvidia_model(model_id):
-        kwargs.update(model_kwargs)
+    if _is_nvidia_model(model_id):
+        kwargs["model_provider"] = "nvidia"
+        if model_kwargs:
+            kwargs.update(model_kwargs)
     return init_chat_model(model_id, **kwargs)

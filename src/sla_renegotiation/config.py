@@ -6,13 +6,13 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     anthropic_api_key: str = ""
-    mistralai_api_key: str = "mn6HBPtSTcOkOcPSyfthImylIJtTHtpb"
+    mistralai_api_key: str = ""
     nvidia_api_key: str = ""
 
-    client_model: str = "mistral-large-latest"
-    provider_model: str = "mistral-large-latest"
-    profiling_model: str = "mistral-small-latest"
-    rc_model: str = "mistral-small-latest"
+    client_model: str = ""
+    provider_model: str = ""
+    profiling_model: str = ""
+    rc_model: str = ""
 
     max_negotiation_rounds: int = 10
 

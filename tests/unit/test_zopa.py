@@ -37,6 +37,7 @@ def _slo(metric: str, target: float, unit: str = "") -> dict[str, SLODefinition]
             unit=unit,
             description="",
             event_type=event_map.get(metric, EventType.LATENCY_VIOLATION),
+            time_to_repair=5,
         )
     }
 

@@ -54,6 +54,7 @@ export async function getSLA(id: string) {
       unit: string;
       description: string;
       event_type: string;
+      time_to_repair: number;
     }>;
   }>;
 }

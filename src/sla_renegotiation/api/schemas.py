@@ -7,7 +7,7 @@ class CreateWorkflowRequest(BaseModel):
     agreed_value: float | None = None
     unit: str = ""
     sla_id: str | None = None
-    time_to_repair_seconds: int | None = None
+    time_to_repair: int | None = None
     description: str = ""
     max_rounds: int = 10
 
@@ -18,6 +18,7 @@ class SLODefinitionResponse(BaseModel):
     unit: str
     description: str
     event_type: str
+    time_to_repair: int
 
 
 class SLASummaryResponse(BaseModel):

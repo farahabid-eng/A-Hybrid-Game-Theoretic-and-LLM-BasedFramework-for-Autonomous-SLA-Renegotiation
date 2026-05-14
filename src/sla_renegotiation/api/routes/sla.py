@@ -39,6 +39,7 @@ def get_sla_detail(sla_id: str) -> SLADetailResponse:
                 unit=slo.unit,
                 description=slo.description,
                 event_type=slo.event_type.value,
+                time_to_repair=slo.time_to_repair,
             )
             for slo in sla.slos
         ],

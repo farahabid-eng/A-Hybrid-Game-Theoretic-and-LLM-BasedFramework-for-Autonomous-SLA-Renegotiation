@@ -18,6 +18,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="P95 response time under normal load",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=5,
             ),
             SLODefinition(
                 metric="availability",
@@ -25,6 +26,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Service uptime percentage per month",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=30,
             ),
             SLODefinition(
                 metric="throughput",
@@ -32,6 +34,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="req/s",
                 description="Maximum sustained request throughput",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="error_rate",
@@ -39,6 +42,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Maximum acceptable error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
+                time_to_repair=10,
             ),
         ],
     ),
@@ -53,6 +57,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="P99 query response time",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=3,
             ),
             SLODefinition(
                 metric="availability",
@@ -60,6 +65,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Monthly uptime guarantee for database cluster",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=15,
             ),
             SLODefinition(
                 metric="throughput",
@@ -67,6 +73,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="qps",
                 description="Maximum sustained queries per second",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="error_rate",
@@ -74,6 +81,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Maximum query error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
+                time_to_repair=5,
             ),
         ],
     ),
@@ -88,6 +96,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="Average page load time",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="availability",
@@ -95,6 +104,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Monthly service availability",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=60,
             ),
             SLODefinition(
                 metric="throughput",
@@ -102,6 +112,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="req/s",
                 description="Sustained request throughput",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=20,
             ),
         ],
     ),
@@ -116,6 +127,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="P95 time-to-first-byte at edge locations",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=5,
             ),
             SLODefinition(
                 metric="availability",
@@ -123,6 +135,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Global edge node availability",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=20,
             ),
             SLODefinition(
                 metric="throughput",
@@ -130,6 +143,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="Mbps",
                 description="Sustained edge egress throughput per region",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="error_rate",
@@ -137,6 +151,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Cache miss / origin fetch error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
+                time_to_repair=10,
             ),
         ],
     ),
@@ -151,6 +166,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="P95 API response time for critical endpoints",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=3,
             ),
             SLODefinition(
                 metric="availability",
@@ -158,6 +174,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Monthly platform uptime (all regions)",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="throughput",
@@ -165,6 +182,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="req/s",
                 description="Sustained API request throughput per tenant",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="error_rate",
@@ -172,6 +190,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="API 5xx error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
+                time_to_repair=5,
             ),
             SLODefinition(
                 metric="cost",
@@ -179,6 +198,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="x",
                 description="Maximum cost overage multiplier vs committed spend",
                 event_type=EventType.COST_OVERAGE,
+                time_to_repair=1440,
             ),
         ],
     ),
@@ -193,6 +213,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="API server response latency P99",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=5,
             ),
             SLODefinition(
                 metric="availability",
@@ -200,6 +221,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Control plane availability per cluster",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=15,
             ),
             SLODefinition(
                 metric="throughput",
@@ -207,6 +229,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="pods/min",
                 description="Node auto-scaling throughput",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="resource_health",
@@ -214,6 +237,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Minimum guaranteed node health percentage per cluster",
                 event_type=EventType.RESOURCE_EXHAUSTION,
+                time_to_repair=10,
             ),
             SLODefinition(
                 metric="error_rate",
@@ -221,6 +245,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Control plane API error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
+                time_to_repair=5,
             ),
         ],
     ),
@@ -235,6 +260,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="ms",
                 description="P99 payment transaction processing latency",
                 event_type=EventType.LATENCY_VIOLATION,
+                time_to_repair=1,
             ),
             SLODefinition(
                 metric="availability",
@@ -242,6 +268,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Payment gateway monthly availability",
                 event_type=EventType.AVAILABILITY_VIOLATION,
+                time_to_repair=5,
             ),
             SLODefinition(
                 metric="throughput",
@@ -249,6 +276,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="tps",
                 description="Sustained transactions per second",
                 event_type=EventType.THROUGHPUT_VIOLATION,
+                time_to_repair=5,
             ),
             SLODefinition(
                 metric="error_rate",
@@ -256,6 +284,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="%",
                 description="Payment processing error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
+                time_to_repair=2,
             ),
             SLODefinition(
                 metric="cost",
@@ -263,6 +292,7 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 unit="x",
                 description="Maximum cost overage vs committed transaction volume pricing",
                 event_type=EventType.COST_OVERAGE,
+                time_to_repair=720,
             ),
         ],
     ),

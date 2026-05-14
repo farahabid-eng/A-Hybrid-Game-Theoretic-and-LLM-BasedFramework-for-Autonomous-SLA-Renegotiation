@@ -24,6 +24,7 @@ class SLODefinition(BaseModel):
     unit: str
     description: str
     event_type: EventType
+    time_to_repair: int
 
 
 class SLATemplate(BaseModel):
@@ -39,7 +40,7 @@ class Violation(BaseModel):
     agreed_value: float
     unit: str
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    time_to_repair_seconds: int | None = None
+    time_to_repair: int | None = None
     description: str = ""
 
     @property

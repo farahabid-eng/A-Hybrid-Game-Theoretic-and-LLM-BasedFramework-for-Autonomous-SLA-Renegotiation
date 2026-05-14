@@ -55,7 +55,7 @@ Constraints:
 - Multiple anomalies may be connected using:
   AND, OR, XOR
 - Example:
-  {(SLO_Latency_001, 50ms) AND (SLO_Availability_002, 99%)}
+  {(SLO_Latency_001, 50ms, 5min) AND (SLO_Availability_002, 99%, 30min)}
 
 2. Action
 - Defines one or multiple corrective adaptations.
@@ -71,11 +71,12 @@ Constraints:
 
 3. Stop_Condition
 - Must include:
-  (t >= TimeToRepair)
+  (t >= max(TTRs))
+  where max(TTRs) is the maximum Time To Repair across all anomalies in the Event.
 - Optionally include:
   (SLI_metric |= SLO_target)
 - General format:
-  (t >= TimeToRepair) OR (SLI_metric |= SLO_target)
+  (t >= max(TTRs)) OR (SLI_metric |= SLO_target)
 
 4. Status
 - ALWAYS initialize the status as:
@@ -90,7 +91,7 @@ Constraints:
 Example Output:
 
 RC = <
-Event = {(SLO_Latency_001, 50ms) AND (SLO_Availability_002, 99%)},
+Event = {(SLO_Latency_001, 50ms, 5min) AND (SLO_Availability_002, 99%, 30min)},
 
 Action =
 {Adjust(SLO_Latency_001, =, 25ms)}
@@ -98,7 +99,7 @@ AND
 {Adjust(SLO_Availability_002, =, 98%)},
 
 Stop_Condition =
-(t >= 30min) OR (SLI_latency |= SLO_latency_target),
+(t >= max(5min, 30min)) OR (SLI_latency |= SLO_latency_target),
 
 Status = Activated
 >\

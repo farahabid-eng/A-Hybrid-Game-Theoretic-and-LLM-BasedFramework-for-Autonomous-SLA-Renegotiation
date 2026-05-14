@@ -18,7 +18,7 @@ def sample_violation():
         observed_value=150.0,
         agreed_value=100.0,
         unit="ms",
-        time_to_repair_seconds=300,
+        time_to_repair=300,
         description="P95 response time exceeded agreed threshold",
     )
 

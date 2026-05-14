@@ -15,6 +15,7 @@ interface SLODetail {
   unit: string;
   description: string;
   event_type: string;
+  time_to_repair: number;
 }
 
 interface SLADetail {
@@ -46,15 +47,23 @@ export default function SLAs() {
     <div className="max-w-4xl mx-auto mt-8">
       <h1 className="text-2xl font-bold mb-2">Predefined SLA Templates</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Browse available SLA templates. Select one to preview its SLOs or use it to start a renegotiation.
+        Browse available SLA templates. Select one to preview its SLOs or use it
+        to start a renegotiation.
       </p>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {slas.map((sla) => (
-          <div key={sla.id} className="border rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div
+            key={sla.id}
+            className="border rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow"
+          >
             <h3 className="font-semibold text-lg mb-1">{sla.name}</h3>
-            <p className="text-sm text-gray-500 mb-3 line-clamp-2">{sla.description}</p>
-            <p className="text-xs text-gray-400 mb-4">{sla.slo_count} SLO{sla.slo_count !== 1 ? "s" : ""}</p>
+            <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+              {sla.description}
+            </p>
+            <p className="text-xs text-gray-400 mb-4">
+              {sla.slo_count} SLO{sla.slo_count !== 1 ? "s" : ""}
+            </p>
             <div className="flex gap-2">
               <button
                 onClick={() => handlePreview(sla.id)}
@@ -91,21 +100,37 @@ export default function SLAs() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left">
-                  <th className="px-5 py-3 font-medium text-gray-600">Violation Type</th>
-                  <th className="px-5 py-3 font-medium text-gray-600">Metric</th>
-                  <th className="px-5 py-3 font-medium text-gray-600">Target</th>
+                  <th className="px-5 py-3 font-medium text-gray-600">
+                    Violation Type
+                  </th>
+                  <th className="px-5 py-3 font-medium text-gray-600">
+                    Metric
+                  </th>
+                  <th className="px-5 py-3 font-medium text-gray-600">
+                    Target
+                  </th>
                   <th className="px-5 py-3 font-medium text-gray-600">Unit</th>
-                  <th className="px-5 py-3 font-medium text-gray-600">Description</th>
+                  <th className="px-5 py-3 font-medium text-gray-600">TTR</th>
+                  <th className="px-5 py-3 font-medium text-gray-600">
+                    Description
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {selected.slos.map((slo, i) => (
                   <tr key={i} className="border-t">
-                    <td className="px-5 py-3 capitalize">{slo.event_type.replace(/_/g, " ")}</td>
+                    <td className="px-5 py-3 capitalize">
+                      {slo.event_type.replace(/_/g, " ")}
+                    </td>
                     <td className="px-5 py-3">{slo.metric}</td>
                     <td className="px-5 py-3 font-mono">{slo.target_value}</td>
                     <td className="px-5 py-3">{slo.unit}</td>
-                    <td className="px-5 py-3 text-gray-500">{slo.description}</td>
+                    <td className="px-5 py-3 font-mono">
+                      {slo.time_to_repair}min
+                    </td>
+                    <td className="px-5 py-3 text-gray-500">
+                      {slo.description}
+                    </td>
                   </tr>
                 ))}
               </tbody>

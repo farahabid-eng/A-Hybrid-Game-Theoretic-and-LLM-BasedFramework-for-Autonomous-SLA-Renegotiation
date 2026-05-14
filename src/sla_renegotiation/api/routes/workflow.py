@@ -41,7 +41,7 @@ def create_workflow(
         observed_value=body.observed_value,
         agreed_value=agreed_value,
         unit=unit,
-        time_to_repair_seconds=body.time_to_repair_seconds,
+        time_to_repair=body.time_to_repair,
         description=body.description,
     )
     workflow = svc.create_workflow(violation, sla_id=body.sla_id, max_rounds=body.max_rounds)

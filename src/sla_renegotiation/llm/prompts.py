@@ -38,16 +38,68 @@ Round {current_round} of {max_rounds}
 """
 
 RC_GENERATOR_SYSTEM = """\
-You are an expert contract analyst. Based on the SLA violation context and the negotiation outcome, generate a structured Renegotiation Clause (RC).
+You are an SLA renegotiation engine.
 
-The RC must capture:
-- event: the anomaly that triggered renegotiation
-- action: the corrective action applied
-- action_type: whether the SLO is relaxed, stricthened, replaced, or removed
-- affected_metrics: which metrics are adjusted
-- adjustments: the new target values per metric
-- stop_condition: when the adaptation ceases
-- status: the final renegotiation state
+Your task is to generate a Renegotiation Clause (RC) following EXACTLY the formal structure below.
 
-Output only the structured clause with no additional commentary. \
+Definition:
+
+RC = < Event, Action, Stop_Condition, Status >
+
+Constraints:
+
+1. Event
+- Represents one or multiple detected anomalies.
+- Each anomaly MUST follow the format:
+  (SLO_id, Observed_value)
+- Multiple anomalies may be connected using:
+  AND, OR, XOR
+- Example:
+  {(SLO_Latency_001, 50ms) AND (SLO_Availability_002, 99%)}
+
+2. Action
+- Defines one or multiple corrective adaptations.
+- Each action MUST follow:
+  Adjust(SLO_id, Operator, NewValue)
+- Allowed operators:
+  =, +, -, <, >, <=, >=
+- Multiple actions MUST be linked with AND.
+- Example:
+  {Adjust(SLO_Latency_001, =, 25ms)}
+  AND
+  {Adjust(SLO_Availability_002, =, 98%)}
+
+3. Stop_Condition
+- Must include:
+  (t >= TimeToRepair)
+- Optionally include:
+  (SLI_metric |= SLO_target)
+- General format:
+  (t >= TimeToRepair) OR (SLI_metric |= SLO_target)
+
+4. Status
+- ALWAYS initialize the status as:
+  Activated
+
+5. Output Rules
+- Generate ONLY the RC object.
+- Do not explain.
+- Keep the exact formal notation.
+- Use realistic SLA metrics (latency, availability, throughput, CPU, response time, etc.).
+
+Example Output:
+
+RC = <
+Event = {(SLO_Latency_001, 50ms) AND (SLO_Availability_002, 99%)},
+
+Action =
+{Adjust(SLO_Latency_001, =, 25ms)}
+AND
+{Adjust(SLO_Availability_002, =, 98%)},
+
+Stop_Condition =
+(t >= 30min) OR (SLI_latency |= SLO_latency_target),
+
+Status = Activated
+>\
 """

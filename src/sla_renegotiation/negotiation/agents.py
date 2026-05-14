@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessageChunk
 from sla_renegotiation.domain.enums import NegotiationRole
 from sla_renegotiation.domain.models import ZOPA, Proposal, StakeholderProfile
 from sla_renegotiation.llm.factory import build_model
-from sla_renegotiation.llm.prompts import NEGOTIATION_STREAM_SYSTEM
+from sla_renegotiation.llm.prompts import NEGOTIATION_AGENT_SYSTEM
 from sla_renegotiation.negotiation.tools import validate_metric_adjustment
 
 _SAFE_TOOL_NAMES = {"validate_metric_adjustment"}
@@ -34,7 +34,7 @@ class NegotiationAgent:
             zopa_lines.append(f"- {metric}: {lo}{unit} – {hi}{unit}{current}")
         zopa_str = "\n".join(zopa_lines)
 
-        system_prompt = NEGOTIATION_STREAM_SYSTEM.format(
+        system_prompt = NEGOTIATION_AGENT_SYSTEM.format(
             role=self.role,
             profile=profile.model_dump_json(indent=2),
             zopa=zopa_str,
@@ -57,7 +57,7 @@ class NegotiationAgent:
         accumulated_message: AIMessageChunk | None = None
         async for chunk in agent.astream(
             {"messages": [{"role": "user", "content": user_content}]},
-            stream_mode=["messages"],
+            stream_mode="messages",
             version="v2",
         ):
             if chunk["type"] != "messages":

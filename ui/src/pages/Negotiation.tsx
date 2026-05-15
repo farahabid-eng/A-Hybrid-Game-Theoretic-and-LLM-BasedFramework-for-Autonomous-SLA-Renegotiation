@@ -103,6 +103,7 @@ export default function Negotiation() {
 
     return () => {
       clearTimeout(timeout);
+      if (ws.readyState <= 1) ws.close();
     };
   }, [id]);
 

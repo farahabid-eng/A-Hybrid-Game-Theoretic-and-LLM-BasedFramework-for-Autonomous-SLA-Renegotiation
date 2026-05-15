@@ -80,7 +80,7 @@ def main() -> None:
     workflow = svc.finalize(workflow.id)
     print(f"Status: {workflow.status.value}")
     if workflow.rc:
-        print(f"RC: {workflow.rc.action_type.value} on {', '.join(workflow.rc.affected_metrics)}")
+        print(f"RC action: {workflow.rc.action}")
     print("Done.")
 
 

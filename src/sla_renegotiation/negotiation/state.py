@@ -17,3 +17,4 @@ class NegotiationState(TypedDict):
     status: RenegotiationStatus
     next_role: str
     agreement_reached: bool
+    violated_metric: str

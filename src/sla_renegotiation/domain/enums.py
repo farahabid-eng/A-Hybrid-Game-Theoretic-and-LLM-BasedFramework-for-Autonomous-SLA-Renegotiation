@@ -11,14 +11,8 @@ class RenegotiationStatus(StrEnum):
     FAILED = "failed"
     MAX_ROUNDS_REACHED = "max_rounds_reached"
     DEADLOCK = "deadlock"
+    ACTIVATED = "activated"
     REJECTED = "rejected"
-
-
-class AdaptationType(StrEnum):
-    RELAX = "relax"
-    STRICTEN = "stricthen"
-    REPLACE = "replace"
-    REMOVE = "remove"
 
 
 class EventType(StrEnum):

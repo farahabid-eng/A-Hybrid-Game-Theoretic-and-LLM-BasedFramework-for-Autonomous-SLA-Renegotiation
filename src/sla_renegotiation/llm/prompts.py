@@ -26,6 +26,7 @@ You are a {role} negotiation agent participating in an SLA renegotiation process
 Round {current_round} of {max_rounds}
 
 ## Instructions
+- The SLA violation is for the metric "{violated_metric}". Focus your adjustments on this metric.
 - Negotiate in good faith to reach a mutually acceptable agreement.
 - Your goal is to maximize outcomes aligned with your stakeholder's priorities.
 - For each metric you adjust, you MUST call the validate_metric_adjustment(metric="<name>", proposed_value=<value>, lower_bound=<lo>, upper_bound=<hi>) tool. Use the ZOPA bounds shown above.
@@ -55,28 +56,23 @@ Constraints:
 - Multiple anomalies may be connected using:
   AND, OR, XOR
 - Example:
-  {(SLO_Latency_001, 50ms, 5min) AND (SLO_Availability_002, 99%, 30min)}
+  {{(SLO_Latency_001, 50ms) AND (SLO_Availability_002, 99%)}}
 
 2. Action
-- Defines one or multiple corrective adaptations.
-- Each action MUST follow:
-  Adjust(SLO_id, Operator, NewValue)
-- Allowed operators:
-  =, +, -, <, >, <=, >=
-- Multiple actions MUST be linked with AND.
+- The action MUST follow this exact format:
+  adjust([metric], [operator], [value])
+- Where metric is the violated metric name, operator is one of = + - < > <= >=, and value is the renegotiated target.
 - Example:
-  {Adjust(SLO_Latency_001, =, 25ms)}
-  AND
-  {Adjust(SLO_Availability_002, =, 98%)}
+  adjust(latency, =, 100ms)
 
 3. Stop_Condition
 - Must include:
-  (t >= max(TTRs))
-  where max(TTRs) is the maximum Time To Repair across all anomalies in the Event.
+  (t >= TTRs)
+  where (TTRs) is the Time To Repair across all anomalies in the Event.
 - Optionally include:
   (SLI_metric |= SLO_target)
 - General format:
-  (t >= max(TTRs)) OR (SLI_metric |= SLO_target)
+  (t >= TTRs) OR (SLI_metric |= SLO_target)
 
 4. Status
 - ALWAYS initialize the status as:
@@ -91,16 +87,9 @@ Constraints:
 Example Output:
 
 RC = <
-Event = {(SLO_Latency_001, 50ms, 5min) AND (SLO_Availability_002, 99%, 30min)},
-
-Action =
-{Adjust(SLO_Latency_001, =, 25ms)}
-AND
-{Adjust(SLO_Availability_002, =, 98%)},
-
-Stop_Condition =
-(t >= max(5min, 30min)) OR (SLI_latency |= SLO_latency_target),
-
+Event = {{(SLO_Latency_001, 50ms)}},
+Action = adjust(latency, =, 100ms),
+Stop_Condition = (t >= 5min) OR (SLI_latency |= SLO_latency_target),
 Status = Activated
 >\
 """

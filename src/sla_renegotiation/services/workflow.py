@@ -74,7 +74,10 @@ class WorkflowService:
             slo_definitions=slo_definitions,
         )
 
-        workflow.status = RenegotiationStatus.NEGOTIATING
+        if not workflow.zopa.feasible_range_per_metric:
+            workflow.status = RenegotiationStatus.FAILED
+        else:
+            workflow.status = RenegotiationStatus.NEGOTIATING
         workflow.updated_at = datetime.now().isoformat()
         self._store.save(workflow)
         return workflow
@@ -96,6 +99,8 @@ class WorkflowService:
 
         history = _format_history(workflow.proposals)
 
+        violated_metric = workflow.violation.metric if workflow.violation else "unknown"
+
         client_proposal = None
         async for _, proposal in client_agent.stream_content(
             profile=workflow.client_profile,
@@ -103,6 +108,7 @@ class WorkflowService:
             history=history,
             current_round=workflow.current_round + 1,
             max_rounds=workflow.max_rounds,
+            violated_metric=violated_metric,
         ):
             if proposal:
                 client_proposal = proposal
@@ -118,6 +124,7 @@ class WorkflowService:
             history=_format_history(workflow.proposals),
             current_round=workflow.current_round,
             max_rounds=workflow.max_rounds,
+            violated_metric=violated_metric,
         ):
             if proposal:
                 provider_proposal = proposal

@@ -31,7 +31,7 @@ def sample_client_form():
         priorities={"latency": 0.6, "availability": 0.4},
         flexibility_margins={"latency": 0.2, "availability": 0.1},
         constraints=["Cannot exceed 200ms p99"],
-        batna=120.0,
+        batna=130.0,
     )
 
 
@@ -43,7 +43,7 @@ def sample_provider_form():
         priorities={"latency": 0.3, "cost": 0.7},
         flexibility_margins={"latency": 0.15, "cost": 0.2},
         cost_considerations="Hardware refresh increased costs 15%",
-        batna=125.0,
+        batna=110.0,
     )
 
 
@@ -55,7 +55,7 @@ def sample_client_profile():
         priorities={"latency": 0.6, "availability": 0.4},
         flexibility_margins={"latency": 0.2, "availability": 0.1},
         constraints=["Cannot exceed 200ms p99"],
-        batna=120.0,
+        batna=130.0,
         context_description="Low-latency gaming platform",
     )
 
@@ -68,7 +68,7 @@ def sample_provider_profile():
         priorities={"latency": 0.3, "cost": 0.7},
         flexibility_margins={"latency": 0.15, "cost": 0.2},
         constraints=["No infrastructure changes before Q3"],
-        batna=125.0,
+        batna=110.0,
         context_description="Provider with hardware refresh constraints",
     )
 

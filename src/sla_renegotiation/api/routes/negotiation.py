@@ -55,150 +55,184 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
         if data.get("type") != "start":
             return
 
-        await websocket.send_json(
-            {"type": "profiling.progress", "status": "Building client profile..."}
-        )
-        workflow = service.run_profiling(workflow_id)
-        if not workflow:
-            await websocket.send_json({"type": "error", "detail": "Profiling failed"})
-            return
-
-        await websocket.send_json(
-            {
-                "type": "profiling.complete",
-                "client_profile": workflow.client_profile.model_dump()
-                if workflow.client_profile
-                else None,
-                "provider_profile": workflow.provider_profile.model_dump()
-                if workflow.provider_profile
-                else None,
-                "zopa": workflow.zopa.model_dump() if workflow.zopa else None,
-            }
-        )
-
-        while workflow.current_round < workflow.max_rounds:
-            round_num = workflow.current_round + 1
-
-            await websocket.send_json(
-                {
-                    "type": "profiling.progress",
-                    "status": f"Client agent is generating proposal (round {round_num})...",
-                }
-            )
-
-            history = _format_history(workflow.proposals)
-
-            async for token, proposal in client_agent.stream_content(
-                profile=workflow.client_profile,
-                zopa=workflow.zopa,
-                history=history,
-                current_round=round_num,
-                max_rounds=workflow.max_rounds,
-            ):
-                if token:
-                    await websocket.send_json(
-                        {
-                            "type": "negotiation.token",
-                            "role": "client",
-                            "token": token,
-                            "round": round_num,
-                        }
-                    )
-                else:
-                    assert proposal is not None
-                    workflow.proposals.append(proposal)
-                    if workflow.zopa:
-                        workflow.zopa = narrow_zopa(workflow.zopa, proposal)
-                    await websocket.send_json(
-                        {
-                            "type": "negotiation.token.done",
-                            "role": "client",
-                            "round": round_num,
-                            "proposal": proposal.model_dump(),
-                        }
-                    )
-
-            workflow.current_round = round_num
-
-            await websocket.send_json(
-                {
-                    "type": "profiling.progress",
-                    "status": f"Provider agent is generating proposal (round {round_num})...",
-                }
-            )
-
-            async for token, proposal in provider_agent.stream_content(
-                profile=workflow.provider_profile,
-                zopa=workflow.zopa,
-                history=_format_history(workflow.proposals),
-                current_round=round_num,
-                max_rounds=workflow.max_rounds,
-            ):
-                if token:
-                    await websocket.send_json(
-                        {
-                            "type": "negotiation.token",
-                            "role": "provider",
-                            "token": token,
-                            "round": round_num,
-                        }
-                    )
-                else:
-                    assert proposal is not None
-                    workflow.proposals.append(proposal)
-                    if workflow.zopa:
-                        workflow.zopa = narrow_zopa(workflow.zopa, proposal)
-                    await websocket.send_json(
-                        {
-                            "type": "negotiation.token.done",
-                            "role": "provider",
-                            "round": round_num,
-                            "proposal": proposal.model_dump(),
-                        }
-                    )
-
-            proposals = (
-                workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
-            )
-
-            if len(workflow.proposals) >= 2 and check_agreement(
-                workflow.proposals[-2], workflow.proposals[-1]
-            ):
-                workflow.status = RenegotiationStatus.AGREED
-            elif round_num >= workflow.max_rounds:
-                workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
-            else:
-                workflow.status = RenegotiationStatus.NEGOTIATING
-
-            workflow.updated_at = datetime.now().isoformat()
-            store.save(workflow)
-
-            await websocket.send_json(
-                {
-                    "type": "negotiation.round",
-                    "round": round_num,
-                    "proposals": [p.model_dump() for p in proposals],
-                    "status": workflow.status.value,
-                }
-            )
-
+        lock = await store.get_lock(workflow_id)
+        async with lock:
+            workflow = service.get_workflow(workflow_id)
             if workflow.status in (
-                RenegotiationStatus.MAX_ROUNDS_REACHED,
+                RenegotiationStatus.NEGOTIATING,
                 RenegotiationStatus.AGREED,
                 RenegotiationStatus.FAILED,
+                RenegotiationStatus.MAX_ROUNDS_REACHED,
                 RenegotiationStatus.DEADLOCK,
+                RenegotiationStatus.REJECTED,
             ):
-                break
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "detail": f"Negotiation already in state: {workflow.status.value}",
+                    }
+                )
+                await websocket.close()
+                return
 
-        workflow = service.finalize(workflow_id)
-        if workflow and workflow.rc:
+            await websocket.send_json(
+                {"type": "profiling.progress", "status": "Building client profile..."}
+            )
+            workflow = service.run_profiling(workflow_id)
+            if not workflow:
+                await websocket.send_json({"type": "error", "detail": "Profiling failed"})
+                return
+
             await websocket.send_json(
                 {
-                    "type": "negotiation.complete",
-                    "status": workflow.status.value,
-                    "rc": workflow.rc.model_dump(),
+                    "type": "profiling.complete",
+                    "client_profile": workflow.client_profile.model_dump()
+                    if workflow.client_profile
+                    else None,
+                    "provider_profile": workflow.provider_profile.model_dump()
+                    if workflow.provider_profile
+                    else None,
+                    "zopa": workflow.zopa.model_dump() if workflow.zopa else None,
                 }
             )
+
+            if workflow.zopa and not workflow.zopa.feasible_range_per_metric:
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "detail": "ZOPA determination failed — no feasible agreement range. Workflow status: "
+                        + workflow.status.value,
+                    }
+                )
+                await websocket.close()
+                return
+
+            while workflow.current_round < workflow.max_rounds:
+                round_num = workflow.current_round + 1
+
+                await websocket.send_json(
+                    {
+                        "type": "profiling.progress",
+                        "status": f"Client agent is generating proposal (round {round_num})...",
+                    }
+                )
+
+                violated_metric = workflow.violation.metric if workflow.violation else "unknown"
+                history = _format_history(workflow.proposals)
+
+                async for token, proposal in client_agent.stream_content(
+                    profile=workflow.client_profile,
+                    zopa=workflow.zopa,
+                    history=history,
+                    current_round=round_num,
+                    max_rounds=workflow.max_rounds,
+                    violated_metric=violated_metric,
+                ):
+                    if token:
+                        await websocket.send_json(
+                            {
+                                "type": "negotiation.token",
+                                "role": "client",
+                                "token": token,
+                                "round": round_num,
+                            }
+                        )
+                    else:
+                        assert proposal is not None
+                        workflow.proposals.append(proposal)
+                        if workflow.zopa:
+                            workflow.zopa = narrow_zopa(workflow.zopa, proposal)
+                        await websocket.send_json(
+                            {
+                                "type": "negotiation.token.done",
+                                "role": "client",
+                                "round": round_num,
+                                "proposal": proposal.model_dump(),
+                            }
+                        )
+
+                workflow.current_round = round_num
+
+                await websocket.send_json(
+                    {
+                        "type": "profiling.progress",
+                        "status": f"Provider agent is generating proposal (round {round_num})...",
+                    }
+                )
+
+                async for token, proposal in provider_agent.stream_content(
+                    profile=workflow.provider_profile,
+                    zopa=workflow.zopa,
+                    history=_format_history(workflow.proposals),
+                    current_round=round_num,
+                    max_rounds=workflow.max_rounds,
+                    violated_metric=violated_metric,
+                ):
+                    if token:
+                        await websocket.send_json(
+                            {
+                                "type": "negotiation.token",
+                                "role": "provider",
+                                "token": token,
+                                "round": round_num,
+                            }
+                        )
+                    else:
+                        assert proposal is not None
+                        workflow.proposals.append(proposal)
+                        if workflow.zopa:
+                            workflow.zopa = narrow_zopa(workflow.zopa, proposal)
+                        await websocket.send_json(
+                            {
+                                "type": "negotiation.token.done",
+                                "role": "provider",
+                                "round": round_num,
+                                "proposal": proposal.model_dump(),
+                            }
+                        )
+
+                proposals = (
+                    workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
+                )
+
+                if len(workflow.proposals) >= 2 and check_agreement(
+                    workflow.proposals[-2], workflow.proposals[-1]
+                ):
+                    workflow.status = RenegotiationStatus.AGREED
+                elif round_num >= workflow.max_rounds:
+                    workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
+                else:
+                    workflow.status = RenegotiationStatus.NEGOTIATING
+
+                workflow.updated_at = datetime.now().isoformat()
+                store.save(workflow)
+
+                await websocket.send_json(
+                    {
+                        "type": "negotiation.round",
+                        "round": round_num,
+                        "proposals": [p.model_dump() for p in proposals],
+                        "status": workflow.status.value,
+                    }
+                )
+
+                if workflow.status in (
+                    RenegotiationStatus.MAX_ROUNDS_REACHED,
+                    RenegotiationStatus.AGREED,
+                    RenegotiationStatus.FAILED,
+                    RenegotiationStatus.DEADLOCK,
+                ):
+                    break
+
+            workflow = service.finalize(workflow_id)
+            if workflow and workflow.rc:
+                await websocket.send_json(
+                    {
+                        "type": "negotiation.complete",
+                        "status": workflow.status.value,
+                        "rc": workflow.rc.model_dump(),
+                    }
+                )
 
     except WebSocketDisconnect:
         pass

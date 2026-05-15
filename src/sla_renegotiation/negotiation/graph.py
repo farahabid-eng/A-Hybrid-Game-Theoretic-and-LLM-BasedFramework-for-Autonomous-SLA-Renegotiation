@@ -13,6 +13,7 @@ async def client_node(state: NegotiationState) -> dict:
         history=_format_history(state["proposals"]),
         current_round=state["current_round"] + 1,
         max_rounds=state["max_rounds"],
+        violated_metric=state["violated_metric"],
     ):
         if proposal:
             return {
@@ -30,6 +31,7 @@ async def provider_node(state: NegotiationState) -> dict:
         history=_format_history(state["proposals"]),
         current_round=state["current_round"],
         max_rounds=state["max_rounds"],
+        violated_metric=state["violated_metric"],
     ):
         if proposal:
             return {

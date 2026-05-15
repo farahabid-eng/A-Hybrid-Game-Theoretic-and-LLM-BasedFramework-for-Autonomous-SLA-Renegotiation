@@ -8,6 +8,7 @@ from sla_renegotiation.domain.models import ZOPA, Proposal, StakeholderProfile
 from sla_renegotiation.llm.factory import build_model
 from sla_renegotiation.llm.prompts import NEGOTIATION_AGENT_SYSTEM
 from sla_renegotiation.negotiation.tools import validate_metric_adjustment
+from sla_renegotiation.negotiation.validation import validate_proposal
 
 _SAFE_TOOL_NAMES = {"validate_metric_adjustment"}
 
@@ -23,6 +24,7 @@ class NegotiationAgent:
         history: str,
         current_round: int,
         max_rounds: int,
+        violated_metric: str,
     ) -> AsyncIterator[tuple[str, Proposal | None]]:
         model = build_model(self.role, temperature=0.7)
 
@@ -40,6 +42,7 @@ class NegotiationAgent:
             zopa=zopa_str,
             current_round=current_round,
             max_rounds=max_rounds,
+            violated_metric=violated_metric,
         )
 
         agent = create_agent(
@@ -86,6 +89,7 @@ class NegotiationAgent:
             content=full_text.strip(),
             structured_adjustments=adjustments or None,
         )
+        proposal = validate_proposal(proposal, zopa)
         yield ("", proposal)
 
 

@@ -4,7 +4,6 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from sla_renegotiation.domain.enums import (
-    AdaptationType,
     EventType,
     NegotiationRole,
     RenegotiationStatus,
@@ -78,13 +77,8 @@ class Proposal(BaseModel):
 class RenegotiationClause(BaseModel):
     event: EventType
     action: str
-    action_type: AdaptationType
-    affected_metrics: list[str]
-    adjustments: dict[str, float]
     stop_condition: str
     status: RenegotiationStatus
-    valid_from: str | None = None
-    valid_until: str | None = None
 
 
 class Workflow(BaseModel):

@@ -2,14 +2,30 @@ from pydantic import BaseModel, Field
 
 
 class CreateWorkflowRequest(BaseModel):
-    event_type: str = "latency_violation"
-    observed_value: float
-    agreed_value: float | None = None
-    unit: str = ""
-    sla_id: str | None = None
-    time_to_repair: int | None = None
-    description: str = ""
+    sla_id: str
     max_rounds: int = 10
+
+
+class SetBATNAsRequest(BaseModel):
+    client_batnas: dict[str, float]
+    provider_batnas: dict[str, float]
+
+
+class SetProfileRequest(BaseModel):
+    objectives: list[str]
+    priorities: dict[str, float]
+    flexibility_margins: dict[str, float]
+    context_description: str
+    tone: str = "neutral"
+
+
+class GenerateProfileRequest(BaseModel):
+    context: str
+
+
+class SimulateViolationRequest(BaseModel):
+    event_type: str
+    observed_value: float
 
 
 class SLODefinitionResponse(BaseModel):
@@ -19,6 +35,17 @@ class SLODefinitionResponse(BaseModel):
     description: str
     event_type: str
     time_to_repair: int
+
+
+class SLOConfigResponse(BaseModel):
+    metric: str
+    unit: str
+    agreed_value: float
+    description: str
+    event_type: str
+    time_to_repair: int
+    client_batna: float | None = None
+    provider_batna: float | None = None
 
 
 class SLASummaryResponse(BaseModel):
@@ -35,25 +62,6 @@ class SLADetailResponse(BaseModel):
     slos: list[SLODefinitionResponse]
 
 
-class SubmitClientFormRequest(BaseModel):
-    business_context: str
-    objectives: list[str]
-    priorities: dict[str, float]
-    flexibility_margins: dict[str, float]
-    constraints: list[str]
-    batna: float
-    tone: str = "neutral"
-
-
-class SubmitProviderFormRequest(BaseModel):
-    resource_limitations: list[str]
-    operational_constraints: list[str]
-    priorities: dict[str, float]
-    flexibility_margins: dict[str, float]
-    cost_considerations: str
-    batna: float
-
-
 class WorkflowResponse(BaseModel):
     id: str
     status: str
@@ -62,6 +70,10 @@ class WorkflowResponse(BaseModel):
     max_rounds: int
     proposals: list[dict[str, object]] = Field(default_factory=list)
     rc: dict[str, object] | None = None
+    client_profile: dict[str, object] | None = None
+    provider_profile: dict[str, object] | None = None
+    zopa: dict[str, object] | None = None
+    violation: dict[str, object] | None = None
     created_at: str
     updated_at: str
 
@@ -69,3 +81,14 @@ class WorkflowResponse(BaseModel):
 class ValidateRCRequest(BaseModel):
     accepted: bool
     feedback: str = ""
+
+
+class SLASLOConfigResponse(BaseModel):
+    metric: str
+    unit: str
+    agreed_value: float
+    description: str
+    event_type: str
+    time_to_repair: int
+    client_batna: float | None = None
+    provider_batna: float | None = None

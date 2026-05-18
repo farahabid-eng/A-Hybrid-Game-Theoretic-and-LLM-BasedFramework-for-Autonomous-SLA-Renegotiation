@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -59,7 +60,6 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
         async with lock:
             workflow = service.get_workflow(workflow_id)
             if workflow.status in (
-                RenegotiationStatus.NEGOTIATING,
                 RenegotiationStatus.AGREED,
                 RenegotiationStatus.FAILED,
                 RenegotiationStatus.MAX_ROUNDS_REACHED,
@@ -75,37 +75,48 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                 await websocket.close()
                 return
 
-            await websocket.send_json(
-                {"type": "profiling.progress", "status": "Building client profile..."}
-            )
-            workflow = service.run_profiling(workflow_id)
-            if not workflow:
-                await websocket.send_json({"type": "error", "detail": "Profiling failed"})
-                return
+            is_resume = workflow.zopa is not None and workflow.current_round > 0
 
-            await websocket.send_json(
-                {
-                    "type": "profiling.complete",
-                    "client_profile": workflow.client_profile.model_dump()
-                    if workflow.client_profile
-                    else None,
-                    "provider_profile": workflow.provider_profile.model_dump()
-                    if workflow.provider_profile
-                    else None,
-                    "zopa": workflow.zopa.model_dump() if workflow.zopa else None,
-                }
-            )
-
-            if workflow.zopa and not workflow.zopa.feasible_range_per_metric:
+            if is_resume:
                 await websocket.send_json(
                     {
-                        "type": "error",
-                        "detail": "ZOPA determination failed — no feasible agreement range. Workflow status: "
-                        + workflow.status.value,
+                        "type": "negotiation.resume",
+                        "current_round": workflow.current_round,
+                        "status": workflow.status.value,
                     }
                 )
-                await websocket.close()
-                return
+            else:
+                await websocket.send_json(
+                    {"type": "profiling.progress", "status": "Computing ZOPA..."}
+                )
+                workflow = service.run_profiling(workflow_id)
+                if not workflow:
+                    await websocket.send_json({"type": "error", "detail": "Profiling failed"})
+                    return
+
+                await websocket.send_json(
+                    {
+                        "type": "profiling.complete",
+                        "client_profile": workflow.client_profile.model_dump()
+                        if workflow.client_profile
+                        else None,
+                        "provider_profile": workflow.provider_profile.model_dump()
+                        if workflow.provider_profile
+                        else None,
+                        "zopa": workflow.zopa.model_dump() if workflow.zopa else None,
+                    }
+                )
+
+                if workflow.zopa and not workflow.zopa.feasible_range_per_metric:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "detail": "ZOPA determination failed — no feasible agreement range. Workflow status: "
+                            + workflow.status.value,
+                        }
+                    )
+                    await websocket.close()
+                    return
 
             while workflow.current_round < workflow.max_rounds:
                 round_num = workflow.current_round + 1
@@ -119,10 +130,11 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
 
                 violated_metric = workflow.violation.metric if workflow.violation else "unknown"
                 history = _format_history(workflow.proposals)
+                round_zopa = workflow.zopa
 
                 async for token, proposal in client_agent.stream_content(
                     profile=workflow.client_profile,
-                    zopa=workflow.zopa,
+                    zopa=round_zopa,
                     history=history,
                     current_round=round_num,
                     max_rounds=workflow.max_rounds,
@@ -140,8 +152,6 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                     else:
                         assert proposal is not None
                         workflow.proposals.append(proposal)
-                        if workflow.zopa:
-                            workflow.zopa = narrow_zopa(workflow.zopa, proposal)
                         await websocket.send_json(
                             {
                                 "type": "negotiation.token.done",
@@ -162,7 +172,7 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
 
                 async for token, proposal in provider_agent.stream_content(
                     profile=workflow.provider_profile,
-                    zopa=workflow.zopa,
+                    zopa=round_zopa,
                     history=_format_history(workflow.proposals),
                     current_round=round_num,
                     max_rounds=workflow.max_rounds,
@@ -180,8 +190,6 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                     else:
                         assert proposal is not None
                         workflow.proposals.append(proposal)
-                        if workflow.zopa:
-                            workflow.zopa = narrow_zopa(workflow.zopa, proposal)
                         await websocket.send_json(
                             {
                                 "type": "negotiation.token.done",
@@ -190,6 +198,13 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                                 "proposal": proposal.model_dump(),
                             }
                         )
+
+                if round_zopa:
+                    narrowed = round_zopa
+                    if len(workflow.proposals) >= 2:
+                        narrowed = narrow_zopa(narrowed, workflow.proposals[-2])
+                        narrowed = narrow_zopa(narrowed, workflow.proposals[-1])
+                    workflow.zopa = narrowed
 
                 proposals = (
                     workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
@@ -215,6 +230,8 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                         "status": workflow.status.value,
                     }
                 )
+
+                await asyncio.sleep(0.5)
 
                 if workflow.status in (
                     RenegotiationStatus.MAX_ROUNDS_REACHED,
@@ -244,10 +261,15 @@ def _to_response(w: object) -> WorkflowResponse:
     return WR(
         id=w.id,
         status=w.status.value,
+        sla_id=w.sla_id,
         current_round=w.current_round,
         max_rounds=w.max_rounds,
         proposals=[p.model_dump() for p in w.proposals],
         rc=w.rc.model_dump() if w.rc else None,
+        client_profile=w.client_profile.model_dump() if w.client_profile else None,
+        provider_profile=w.provider_profile.model_dump() if w.provider_profile else None,
+        zopa=w.zopa.model_dump() if w.zopa else None,
+        violation=w.violation.model_dump() if w.violation else None,
         created_at=w.created_at,
         updated_at=w.updated_at,
     )

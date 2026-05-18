@@ -1,7 +1,6 @@
 from sla_renegotiation.domain.enums import EventType, NegotiationRole
-from sla_renegotiation.domain.models import Proposal, SLODefinition, StakeholderProfile, ZOPA
-from sla_renegotiation.zopa.calculator import compute_zopa, narrow_zopa
-from tests.conftest import sample_client_profile, sample_provider_profile  # noqa: F401
+from sla_renegotiation.domain.models import ZOPA, Proposal, SLOConfig, SLODefinition
+from sla_renegotiation.zopa.calculator import compute_multi_metric_zopa, compute_zopa, narrow_zopa
 
 
 def _make_zopa(
@@ -43,27 +42,9 @@ def _slo(metric: str, target: float, unit: str = "") -> dict[str, SLODefinition]
 
 
 def test_zopa_requires_both_batnas():
-    client = StakeholderProfile(
-        role="client",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=None,
-        context_description="",
-    )
-    provider = StakeholderProfile(
-        role="provider",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=110.0,
-        context_description="",
-    )
     zopa = compute_zopa(
-        client,
-        provider,
+        client_batna=None,
+        provider_batna=110.0,
         violated_event_type=EventType.LATENCY_VIOLATION,
         agreed_value=100.0,
     )
@@ -72,27 +53,9 @@ def test_zopa_requires_both_batnas():
 
 
 def test_zopa_low_is_better():
-    client = StakeholderProfile(
-        role="client",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=130.0,
-        context_description="",
-    )
-    provider = StakeholderProfile(
-        role="provider",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=110.0,
-        context_description="",
-    )
     zopa = compute_zopa(
-        client,
-        provider,
+        client_batna=130.0,
+        provider_batna=110.0,
         violated_event_type=EventType.LATENCY_VIOLATION,
         agreed_value=100.0,
     )
@@ -102,27 +65,9 @@ def test_zopa_low_is_better():
 
 
 def test_zopa_high_is_better():
-    client = StakeholderProfile(
-        role="client",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=99.0,
-        context_description="",
-    )
-    provider = StakeholderProfile(
-        role="provider",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=99.9,
-        context_description="",
-    )
     zopa = compute_zopa(
-        client,
-        provider,
+        client_batna=99.0,
+        provider_batna=99.9,
         violated_event_type=EventType.AVAILABILITY_VIOLATION,
         agreed_value=99.5,
     )
@@ -132,46 +77,28 @@ def test_zopa_high_is_better():
 
 
 def test_zopa_no_overlap():
-    client = StakeholderProfile(
-        role="client",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=100.0,
-        context_description="",
-    )
-    provider = StakeholderProfile(
-        role="provider",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=200.0,
-        context_description="",
-    )
     zopa = compute_zopa(
-        client,
-        provider,
+        client_batna=100.0,
+        provider_batna=200.0,
         violated_event_type=EventType.LATENCY_VIOLATION,
         agreed_value=150.0,
     )
     assert len(zopa.feasible_range_per_metric) == 0
 
 
-def test_zopa_no_violation(sample_client_profile, sample_provider_profile):  # noqa: F811
+def test_zopa_no_violation():
     zopa = compute_zopa(
-        sample_client_profile,
-        sample_provider_profile,
+        client_batna=130.0,
+        provider_batna=110.0,
         violated_event_type=None,
     )
     assert len(zopa.feasible_range_per_metric) == 0
 
 
-def test_zopa_only_violated_metric(sample_client_profile, sample_provider_profile):  # noqa: F811
+def test_zopa_only_violated_metric():
     zopa = compute_zopa(
-        sample_client_profile,
-        sample_provider_profile,
+        client_batna=130.0,
+        provider_batna=110.0,
         violated_event_type=EventType.LATENCY_VIOLATION,
         agreed_value=100.0,
         slo_definitions=_slo("latency", 100.0, "ms") | _slo("cost", 200.0, "$"),
@@ -180,10 +107,10 @@ def test_zopa_only_violated_metric(sample_client_profile, sample_provider_profil
     assert "cost" not in zopa.feasible_range_per_metric
 
 
-def test_zopa_sets_targets_and_units(sample_client_profile, sample_provider_profile):  # noqa: F811
+def test_zopa_sets_targets_and_units():
     zopa = compute_zopa(
-        sample_client_profile,
-        sample_provider_profile,
+        client_batna=130.0,
+        provider_batna=110.0,
         violated_event_type=EventType.LATENCY_VIOLATION,
         agreed_value=100.0,
         slo_definitions=_slo("latency", 100.0, "ms"),
@@ -193,32 +120,98 @@ def test_zopa_sets_targets_and_units(sample_client_profile, sample_provider_prof
 
 
 def test_zopa_rounds_to_4_decimals():
-    client = StakeholderProfile(
-        role="client",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=130.12345,
-        context_description="",
-    )
-    provider = StakeholderProfile(
-        role="provider",
-        objectives=[],
-        priorities={},
-        flexibility_margins={},
-        constraints=[],
-        batna=110.12345,
-        context_description="",
-    )
     zopa = compute_zopa(
-        client,
-        provider,
+        client_batna=130.12345,
+        provider_batna=110.12345,
         violated_event_type=EventType.LATENCY_VIOLATION,
     )
     lo, hi = zopa.feasible_range_per_metric["latency"]
     assert round(lo, 4) == lo
     assert round(hi, 4) == hi
+
+
+def _make_slo_config(
+    metric: str,
+    agreed: float,
+    unit: str,
+    event_type: EventType,
+    client_batna: float | None,
+    provider_batna: float | None,
+) -> SLOConfig:
+    return SLOConfig(
+        metric=metric,
+        unit=unit,
+        agreed_value=agreed,
+        description="",
+        event_type=event_type,
+        time_to_repair=5,
+        client_batna=client_batna,
+        provider_batna=provider_batna,
+    )
+
+
+def test_multi_metric_zopa_all_metrics():
+    configs = [
+        _make_slo_config("latency", 200.0, "ms", EventType.LATENCY_VIOLATION, 250.0, 180.0),
+        _make_slo_config("availability", 99.9, "%", EventType.AVAILABILITY_VIOLATION, 99.0, 99.95),
+        _make_slo_config("cost", 2000.0, "EUR", EventType.COST_OVERAGE, 2500.0, 2200.0),
+    ]
+    zopa = compute_multi_metric_zopa(configs)
+    assert set(zopa.feasible_range_per_metric.keys()) == {"latency", "availability", "cost"}
+    assert zopa.feasible_range_per_metric["latency"] == (180.0, 250.0)
+    assert zopa.feasible_range_per_metric["availability"] == (99.0, 99.95)
+
+
+def test_multi_metric_zopa_partial_batnas():
+    configs = [
+        _make_slo_config("latency", 200.0, "ms", EventType.LATENCY_VIOLATION, 250.0, 180.0),
+        _make_slo_config("availability", 99.9, "%", EventType.AVAILABILITY_VIOLATION, None, 99.95),
+        _make_slo_config("cost", 2000.0, "EUR", EventType.COST_OVERAGE, 2500.0, None),
+    ]
+    zopa = compute_multi_metric_zopa(configs)
+    assert set(zopa.feasible_range_per_metric.keys()) == {"latency"}
+    assert "availability" not in zopa.feasible_range_per_metric
+    assert "cost" not in zopa.feasible_range_per_metric
+
+
+def test_multi_metric_zopa_no_overlap():
+    configs = [
+        _make_slo_config("latency", 200.0, "ms", EventType.LATENCY_VIOLATION, 100.0, 250.0),
+    ]
+    zopa = compute_multi_metric_zopa(configs)
+    assert len(zopa.feasible_range_per_metric) == 0
+    assert "overlapping" in zopa.description
+
+
+def test_multi_metric_zopa_violated_metric_in_description():
+    configs = [
+        _make_slo_config("latency", 200.0, "ms", EventType.LATENCY_VIOLATION, 250.0, 180.0),
+        _make_slo_config("availability", 99.9, "%", EventType.AVAILABILITY_VIOLATION, 99.0, 99.95),
+    ]
+    zopa = compute_multi_metric_zopa(configs, violated_metric="latency")
+    assert "latency" in zopa.description
+
+
+def test_multi_metric_zopa_sets_targets_and_units():
+    configs = [
+        _make_slo_config("latency", 200.0, "ms", EventType.LATENCY_VIOLATION, 250.0, 180.0),
+        _make_slo_config("availability", 99.9, "%", EventType.AVAILABILITY_VIOLATION, 99.0, 99.95),
+    ]
+    zopa = compute_multi_metric_zopa(configs)
+    assert zopa.current_targets["latency"] == 200.0
+    assert zopa.current_targets["availability"] == 99.9
+    assert zopa.units["latency"] == "ms"
+    assert zopa.units["availability"] == "%"
+
+
+def test_multi_metric_zopa_low_is_better_flags():
+    configs = [
+        _make_slo_config("latency", 200.0, "ms", EventType.LATENCY_VIOLATION, 250.0, 180.0),
+        _make_slo_config("availability", 99.9, "%", EventType.AVAILABILITY_VIOLATION, 99.0, 99.95),
+    ]
+    zopa = compute_multi_metric_zopa(configs)
+    assert zopa.low_is_better["latency"] is True
+    assert zopa.low_is_better["availability"] is False
 
 
 class TestNarrowZopa:

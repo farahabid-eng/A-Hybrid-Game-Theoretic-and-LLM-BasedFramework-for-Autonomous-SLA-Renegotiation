@@ -20,6 +20,7 @@ def _get_ttr(workflow: Workflow) -> int | None:
         return workflow.violation.time_to_repair
     if workflow.sla_id and workflow.violation:
         from sla_renegotiation.storage.sla_seeds import get_sla
+
         sla = get_sla(workflow.sla_id)
         if sla:
             for slo in sla.slos:
@@ -28,9 +29,7 @@ def _get_ttr(workflow: Workflow) -> int | None:
     return None
 
 
-def _format_action(
-    metric: str, value: float, unit: str, is_low_better: bool
-) -> str:
+def _format_action(metric: str, value: float, unit: str, is_low_better: bool) -> str:
     op = "<=" if is_low_better else ">="
     return f"adjust({metric}, {op}, {value}{unit})"
 

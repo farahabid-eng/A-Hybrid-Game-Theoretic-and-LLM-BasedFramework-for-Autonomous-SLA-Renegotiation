@@ -12,3 +12,5 @@ ui/dist/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+sla_*.db
+db/

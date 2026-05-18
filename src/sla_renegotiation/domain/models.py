@@ -10,13 +10,6 @@ from sla_renegotiation.domain.enums import (
 )
 
 
-class SLO(BaseModel):
-    metric: str
-    agreed_value: float
-    unit: str
-    description: str = ""
-
-
 class SLODefinition(BaseModel):
     metric: str
     target_value: float
@@ -24,6 +17,17 @@ class SLODefinition(BaseModel):
     description: str
     event_type: EventType
     time_to_repair: int
+
+
+class SLOConfig(BaseModel):
+    metric: str
+    unit: str
+    agreed_value: float
+    description: str
+    event_type: EventType
+    time_to_repair: int
+    client_batna: float | None = None
+    provider_batna: float | None = None
 
 
 class SLATemplate(BaseModel):
@@ -52,8 +56,6 @@ class StakeholderProfile(BaseModel):
     objectives: list[str]
     priorities: dict[str, float]
     flexibility_margins: dict[str, float]
-    constraints: list[str]
-    batna: float | None = None
     context_description: str
     tone: str = "neutral"
 

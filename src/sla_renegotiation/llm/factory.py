@@ -1,10 +1,12 @@
 from typing import Any
 
+import aiolimiter
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 
 from sla_renegotiation.config import settings
 
+llm_rate_limiter = aiolimiter.AsyncLimiter(max_rate=3, time_period=1)
 
 _MODEL_KEY_MAP: dict[str, str] = {
     "client": settings.client_model,

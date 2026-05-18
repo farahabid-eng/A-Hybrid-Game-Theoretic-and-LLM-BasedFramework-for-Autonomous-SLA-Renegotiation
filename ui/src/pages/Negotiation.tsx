@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import ChatMessage from "../components/ChatMessage";
 import StatusBadge from "../components/StatusBadge";
 import { connectNegotiationWS } from "../api/client";
+import type { StakeholderProfile } from "../components/ProfileTooltip";
 
 export default function Negotiation() {
   const { id } = useParams();
@@ -19,6 +20,8 @@ export default function Negotiation() {
   const [status, setStatus] = useState("pending");
   const [rc, setRc] = useState<Record<string, unknown> | null>(null);
   const [connected, setConnected] = useState(false);
+  const [clientProfile, setClientProfile] = useState<StakeholderProfile | null>(null);
+  const [providerProfile, setProviderProfile] = useState<StakeholderProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const connectedRef = useRef(false);
@@ -70,6 +73,8 @@ export default function Negotiation() {
       } else if (data.type === "profiling.complete") {
         setStatus("profiling");
         setProfilingStatus("");
+        setClientProfile(data.client_profile);
+        setProviderProfile(data.provider_profile);
       } else if (data.type === "negotiation.token") {
         setProfilingStatus("");
         setStreamingMessage((prev) => {
@@ -143,6 +148,9 @@ export default function Negotiation() {
             role={msg.role as "client" | "provider"}
             message={msg.message}
             round={msg.round}
+            profile={
+              msg.role === "client" ? clientProfile ?? undefined : providerProfile ?? undefined
+            }
           />
         ))}
         {streamingMessage && (
@@ -151,6 +159,11 @@ export default function Negotiation() {
               role={streamingMessage.role as "client" | "provider"}
               message={streamingMessage.content}
               round={streamingMessage.round}
+              profile={
+                streamingMessage.role === "client"
+                  ? clientProfile ?? undefined
+                  : providerProfile ?? undefined
+              }
             />
           </div>
         )}

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import sqlite3
 from uuid import uuid4
 
@@ -19,6 +20,7 @@ from sla_renegotiation.domain.models import (
 class WorkflowStore:
     def __init__(self, db_path: str | None = None) -> None:
         self._db_path = db_path or settings.db_path
+        os.makedirs(os.path.dirname(self._db_path), exist_ok=True)
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._locks: dict[str, asyncio.Lock] = {}

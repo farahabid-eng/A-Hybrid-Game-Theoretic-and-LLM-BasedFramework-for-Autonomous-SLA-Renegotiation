@@ -114,7 +114,6 @@ Provider is responsible for SLA violation unless stated otherwise. The violating
   """
 
 
-
 RC_GENERATOR_SYSTEM = """\
 You are an SLA contract analyst specializing in automated renegotiation and remediation clauses.
 
@@ -149,7 +148,7 @@ Generate a single natural-language renegotiation clause based on:
 - Preserve units exactly as negotiated (e.g., req/s, %, ms).
 
 ## Output Template
-Renegotiation Clause: Upon occurrence of a {violated_metric} violation, corrective adjustment is activated to maintain [agreed target]. This condition remains in effect until [stop condition], after which normal SLA conditions resume and the clause is deactivated.
+Upon occurrence of a **{violated_metric}** violation, **corrective adjustment** is activated to maintain **[agreed target]**. This condition remains in effect until **[stop condition]**, after which normal SLA conditions resume and the clause is deactivated.
 
 ## Inputs
 Violated metric:

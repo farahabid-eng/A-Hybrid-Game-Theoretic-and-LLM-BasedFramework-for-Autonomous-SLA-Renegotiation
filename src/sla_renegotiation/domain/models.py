@@ -77,10 +77,7 @@ class Proposal(BaseModel):
 
 
 class RenegotiationClause(BaseModel):
-    event: EventType
-    action: str
-    stop_condition: str
-    status: RenegotiationStatus
+    clause_text: str
 
 
 class Workflow(BaseModel):

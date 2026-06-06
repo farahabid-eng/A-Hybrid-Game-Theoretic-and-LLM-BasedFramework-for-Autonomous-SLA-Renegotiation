@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ChatMessage from "../components/ChatMessage";
+import ReactMarkdown from "react-markdown";
 import StatusBadge from "../components/StatusBadge";
 import { getWorkflow, connectNegotiationWS } from "../api/client";
 import type { StakeholderProfile } from "../components/ProfileTooltip";
@@ -232,9 +233,9 @@ export default function Negotiation() {
           <h2 className="font-semibold text-lg mb-3">
             Renegotiation Clause Generated
           </h2>
-          <pre className="text-xs bg-white rounded p-4 overflow-x-auto border">
-            {JSON.stringify(rc, null, 2)}
-          </pre>
+          <div className="text-gray-800 text-sm bg-white rounded p-4 border [&_p]:m-0">
+            <ReactMarkdown>{rc.clause_text as string}</ReactMarkdown>
+          </div>
           <button
             onClick={() => navigate(`/workflows/${id}/validation`)}
             className="mt-4 bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700"

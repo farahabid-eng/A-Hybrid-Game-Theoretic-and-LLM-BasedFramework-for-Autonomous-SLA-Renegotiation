@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -246,10 +247,8 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        try:
+        with contextlib.suppress(BaseException):
             await websocket.send_json({"type": "error", "detail": f"Negotiation failed: {str(e)}"})
-        except:
-            pass
 
 
 def _to_response(w: object) -> WorkflowResponse:

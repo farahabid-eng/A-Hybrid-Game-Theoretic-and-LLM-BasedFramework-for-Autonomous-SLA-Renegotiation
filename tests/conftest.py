@@ -1,5 +1,4 @@
 import pytest
-from langchain_core.messages import AIMessage
 
 from sla_renegotiation.context_gathering.forms import ClientForm, ProviderForm
 from sla_renegotiation.domain.enums import EventType
@@ -72,8 +71,6 @@ def sample_zopa(sample_violation):
     from sla_renegotiation.zopa.calculator import compute_zopa
 
     return compute_zopa(
-        client_batna=130.0,
-        provider_batna=110.0,
         violated_event_type=sample_violation.event_type,
         agreed_value=sample_violation.agreed_value,
     )

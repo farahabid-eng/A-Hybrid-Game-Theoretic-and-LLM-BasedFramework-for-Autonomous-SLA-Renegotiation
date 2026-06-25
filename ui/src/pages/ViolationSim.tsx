@@ -8,8 +8,6 @@ interface SLOConfig {
   agreed_value: number;
   description: string;
   event_type: string;
-  client_batna: number | null;
-  provider_batna: number | null;
 }
 
 export default function ViolationSim() {

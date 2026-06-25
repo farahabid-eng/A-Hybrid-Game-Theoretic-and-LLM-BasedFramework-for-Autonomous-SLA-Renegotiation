@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
@@ -24,7 +25,12 @@ class WorkflowService:
     def __init__(self, store: WorkflowStore) -> None:
         self._store = store
 
-    def create_workflow(self, sla_id: str, max_rounds: int = 10) -> Workflow:
+    def create_workflow(
+        self,
+        sla_id: str,
+        max_rounds: int = 10,
+        metric_weights: dict[str, float] | None = None,
+    ) -> Workflow:
         sla = get_sla(sla_id)
         if not sla:
             raise ValueError(f"SLA template '{sla_id}' not found")
@@ -35,7 +41,7 @@ class WorkflowService:
             status=RenegotiationStatus.PENDING,
         )
 
-        # Copy SLA-level SLO configs (with BATNAs) to the workflow
+        # Copy SLA-level SLO configs to the workflow
         sla_configs = self._store.get_sla_slo_configs(sla_id)
         if sla_configs:
             workflow_configs = [
@@ -46,8 +52,6 @@ class WorkflowService:
                     description=c.description,
                     event_type=c.event_type,
                     time_to_repair=c.time_to_repair,
-                    client_batna=c.client_batna,
-                    provider_batna=c.provider_batna,
                 )
                 for c in sla_configs
             ]
@@ -64,44 +68,42 @@ class WorkflowService:
                 for slo in sla.slos
             ]
 
-        # Copy SLA-level profiles to the workflow
-        client_profile = self._store.get_sla_profile(sla_id, "client")
-        provider_profile = self._store.get_sla_profile(sla_id, "provider")
-        if client_profile:
-            workflow.client_profile = client_profile
-        if provider_profile:
-            workflow.provider_profile = provider_profile
+        # Determine metric weights
+        metrics = [c.metric for c in workflow_configs]
+        if not metric_weights:
+            n = len(metrics)
+            metric_weights = {m: round(1.0 / n, 4) for m in metrics}
+        else:
+            # Add any missing metrics with weight 0
+            for m in metrics:
+                if m not in metric_weights:
+                    metric_weights[m] = 0.0
+            # Validate sum of weights is roughly 1.0
+            tot = sum(metric_weights.values())
+            if not (0.99 <= tot <= 1.01):
+                raise ValueError("The sum of metric weights must be exactly 1.0")
+
+        # Generate default stakeholder profiles based on weights
+        workflow.client_profile = StakeholderProfile(
+            role=NegotiationRole.CLIENT,
+            objectives=[f"Minimize {m} degradation and optimize QoS" for m in metrics],
+            priorities=metric_weights,
+            flexibility_margins={m: 0.15 for m in metrics},
+            context_description="Client seeking optimal service level targets.",
+            tone="collaborative",
+        )
+        workflow.provider_profile = StakeholderProfile(
+            role=NegotiationRole.PROVIDER,
+            objectives=[f"Maintain operational feasibility for {m}" for m in metrics],
+            priorities=metric_weights,
+            flexibility_margins={m: 0.15 for m in metrics},
+            context_description="Provider delivering stable service level targets.",
+            tone="collaborative",
+        )
 
         self._store.save(workflow)
         self._store.save_slo_configs(workflow.id, workflow_configs)
         return workflow
-
-    def set_batnas(
-        self,
-        workflow_id: str,
-        client_batnas: dict[str, float],
-        provider_batnas: dict[str, float],
-    ) -> Workflow:
-        workflow = self._store.get(workflow_id)
-        if not workflow:
-            raise ValueError("Workflow not found")
-
-        slo_configs = self._store.get_slo_configs(workflow_id)
-        slo_metrics = {c.metric for c in slo_configs}
-
-        for m in client_batnas:
-            if m not in slo_metrics:
-                raise ValueError(f"Unknown metric: {m}")
-        for m in provider_batnas:
-            if m not in slo_metrics:
-                raise ValueError(f"Unknown metric: {m}")
-
-        self._store.update_slo_batnas(workflow_id, client_batnas, provider_batnas)
-        workflow.updated_at = datetime.now().isoformat()
-        self._store.save(workflow)
-        result = self._store.get(workflow_id)
-        assert result is not None
-        return result
 
     def set_profile(
         self,
@@ -202,17 +204,34 @@ class WorkflowService:
 
             # Enforce "Degraded Regime" for severe violations (>10% deviation) as per NEGOTIATION_AGENT_SYSTEM.
             # If severe, cap the negotiation at a "realistic recovery" level rather than the original target.
-            deviation = abs(agreed_value - observed_value) / agreed_value if agreed_value != 0 else 0
+            deviation = (
+                abs(agreed_value - observed_value) / agreed_value if agreed_value != 0 else 0
+            )
             if deviation > 0.10:
                 gap = abs(agreed_value - observed_value)
                 # Cap recovery at 30% of the gap back toward the target to ensure a realistic range
-                recovery_limit = observed_value + (gap * 0.3) if not is_low_better else observed_value - (gap * 0.3)
-                new_lo, new_hi = (recovery_limit, observed_value) if is_low_better else (observed_value, recovery_limit)
+                recovery_limit = (
+                    observed_value + (gap * 0.3)
+                    if not is_low_better
+                    else observed_value - (gap * 0.3)
+                )
+                new_lo, new_hi = (
+                    (recovery_limit, observed_value)
+                    if is_low_better
+                    else (observed_value, recovery_limit)
+                )
             else:
                 # Normal range [observed, agreed] for minor violations
-                new_lo, new_hi = (agreed_value, observed_value) if is_low_better else (observed_value, agreed_value)
+                new_lo, new_hi = (
+                    (agreed_value, observed_value)
+                    if is_low_better
+                    else (observed_value, agreed_value)
+                )
 
-            workflow.zopa.feasible_range_per_metric[violated_metric] = (min(new_lo, new_hi), max(new_lo, new_hi))
+            workflow.zopa.feasible_range_per_metric[violated_metric] = (
+                min(new_lo, new_hi),
+                max(new_lo, new_hi),
+            )
 
         if not workflow.zopa.feasible_range_per_metric:
             workflow.status = RenegotiationStatus.FAILED
@@ -294,7 +313,7 @@ class WorkflowService:
         # Prepare context for the RC generation prompt
         violated_metric = workflow.violation.metric
         history = _format_history(workflow.proposals)
-        
+
         # Use the last two proposals as the core of the agreement
         agreement = ""
         if len(workflow.proposals) >= 2:
@@ -308,12 +327,14 @@ class WorkflowService:
         chain = prompt | model
 
         async with llm_rate_limiter:
-            response = await chain.ainvoke({
-                "violated_metric": violated_metric,
-                "history": history,
-                "agreement": agreement,
-                "recovery_parameters": recovery_params
-            })
+            response = await chain.ainvoke(
+                {
+                    "violated_metric": violated_metric,
+                    "history": history,
+                    "agreement": agreement,
+                    "recovery_parameters": recovery_params,
+                }
+            )
 
         workflow.rc = RenegotiationClause(clause_text=str(response.content))
         workflow.status = RenegotiationStatus.AGREED
@@ -331,40 +352,6 @@ class WorkflowService:
 
     def get_sla_slo_configs(self, sla_id: str) -> list[SLOConfig]:
         return self._store.get_sla_slo_configs(sla_id)
-
-    def set_sla_batnas(
-        self,
-        sla_id: str,
-        client_batnas: dict[str, float],
-        provider_batnas: dict[str, float],
-    ) -> None:
-        configs = self._store.get_sla_slo_configs(sla_id)
-        if not configs:
-            sla = get_sla(sla_id)
-            if not sla:
-                raise ValueError(f"SLA template '{sla_id}' not found")
-            configs = [
-                SLOConfig(
-                    metric=slo.metric,
-                    unit=slo.unit,
-                    agreed_value=slo.target_value,
-                    description=slo.description,
-                    event_type=slo.event_type,
-                    time_to_repair=slo.time_to_repair,
-                )
-                for slo in sla.slos
-            ]
-            self._store.save_sla_slo_configs(sla_id, configs)
-
-        slo_metrics = {c.metric for c in configs}
-        for m in client_batnas:
-            if m not in slo_metrics:
-                raise ValueError(f"Unknown metric: {m}")
-        for m in provider_batnas:
-            if m not in slo_metrics:
-                raise ValueError(f"Unknown metric: {m}")
-
-        self._store.update_sla_batnas(sla_id, client_batnas, provider_batnas)
 
     def set_sla_profile(
         self,

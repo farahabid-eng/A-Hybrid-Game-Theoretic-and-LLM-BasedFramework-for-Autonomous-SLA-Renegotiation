@@ -4,7 +4,6 @@ from sla_renegotiation.api.dependencies import get_workflow_service
 from sla_renegotiation.api.schemas import (
     CreateWorkflowRequest,
     GenerateProfileRequest,
-    SetBATNAsRequest,
     SetProfileRequest,
     SimulateViolationRequest,
     SLOConfigResponse,
@@ -22,7 +21,11 @@ def create_workflow(
     svc: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowResponse:
     try:
-        workflow = svc.create_workflow(sla_id=body.sla_id, max_rounds=body.max_rounds)
+        workflow = svc.create_workflow(
+            sla_id=body.sla_id,
+            max_rounds=body.max_rounds,
+            metric_weights=body.metric_weights,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return _to_response(workflow, svc)
@@ -63,24 +66,9 @@ def get_workflow_slos(
             description=c.description,
             event_type=c.event_type.value if hasattr(c.event_type, "value") else c.event_type,
             time_to_repair=c.time_to_repair,
-            client_batna=c.client_batna,
-            provider_batna=c.provider_batna,
         )
         for c in configs
     ]
-
-
-@router.post("/{workflow_id}/batnas", response_model=WorkflowResponse)
-def set_batnas(
-    workflow_id: str,
-    body: SetBATNAsRequest,
-    svc: WorkflowService = Depends(get_workflow_service),
-) -> WorkflowResponse:
-    try:
-        workflow = svc.set_batnas(workflow_id, body.client_batnas, body.provider_batnas)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    return _to_response(workflow, svc)
 
 
 @router.post("/{workflow_id}/profiles/client", response_model=WorkflowResponse)

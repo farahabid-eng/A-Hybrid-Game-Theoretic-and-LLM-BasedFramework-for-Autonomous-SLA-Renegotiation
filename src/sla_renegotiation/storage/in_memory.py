@@ -51,8 +51,6 @@ class WorkflowStore:
                 description TEXT NOT NULL,
                 event_type TEXT NOT NULL,
                 time_to_repair INTEGER NOT NULL,
-                client_batna REAL,
-                provider_batna REAL,
                 PRIMARY KEY (workflow_id, metric)
             );
 
@@ -64,8 +62,6 @@ class WorkflowStore:
                 description TEXT NOT NULL,
                 event_type TEXT NOT NULL,
                 time_to_repair INTEGER NOT NULL,
-                client_batna REAL,
-                provider_batna REAL,
                 PRIMARY KEY (sla_id, metric)
             );
 
@@ -198,8 +194,8 @@ class WorkflowStore:
             self._conn.execute(
                 """INSERT OR REPLACE INTO slo_configs
                    (workflow_id, metric, unit, agreed_value, description,
-                    event_type, time_to_repair, client_batna, provider_batna)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    event_type, time_to_repair)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     workflow_id,
                     c.metric,
@@ -208,8 +204,6 @@ class WorkflowStore:
                     c.description,
                     c.event_type.value if hasattr(c.event_type, "value") else c.event_type,
                     c.time_to_repair,
-                    c.client_batna,
-                    c.provider_batna,
                 ),
             )
         self._conn.commit()
@@ -236,27 +230,7 @@ class WorkflowStore:
             description=row["description"],
             event_type=EventType(row["event_type"]),
             time_to_repair=row["time_to_repair"],
-            client_batna=row["client_batna"],
-            provider_batna=row["provider_batna"],
         )
-
-    def update_slo_batnas(
-        self,
-        workflow_id: str,
-        client_batnas: dict[str, float],
-        provider_batnas: dict[str, float],
-    ) -> None:
-        for metric, value in client_batnas.items():
-            self._conn.execute(
-                "UPDATE slo_configs SET client_batna = ? WHERE workflow_id = ? AND metric = ?",
-                (value, workflow_id, metric),
-            )
-        for metric, value in provider_batnas.items():
-            self._conn.execute(
-                "UPDATE slo_configs SET provider_batna = ? WHERE workflow_id = ? AND metric = ?",
-                (value, workflow_id, metric),
-            )
-        self._conn.commit()
 
     # --- SLA-level helpers ---
 
@@ -265,8 +239,8 @@ class WorkflowStore:
             self._conn.execute(
                 """INSERT OR REPLACE INTO sla_slo_configs
                    (sla_id, metric, unit, agreed_value, description,
-                    event_type, time_to_repair, client_batna, provider_batna)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    event_type, time_to_repair)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     sla_id,
                     c.metric,
@@ -275,8 +249,6 @@ class WorkflowStore:
                     c.description,
                     c.event_type.value if hasattr(c.event_type, "value") else c.event_type,
                     c.time_to_repair,
-                    c.client_batna,
-                    c.provider_batna,
                 ),
             )
         self._conn.commit()
@@ -286,24 +258,6 @@ class WorkflowStore:
             "SELECT * FROM sla_slo_configs WHERE sla_id = ?", (sla_id,)
         ).fetchall()
         return [self._row_to_slo_config(r) for r in rows]
-
-    def update_sla_batnas(
-        self,
-        sla_id: str,
-        client_batnas: dict[str, float],
-        provider_batnas: dict[str, float],
-    ) -> None:
-        for metric, value in client_batnas.items():
-            self._conn.execute(
-                "UPDATE sla_slo_configs SET client_batna = ? WHERE sla_id = ? AND metric = ?",
-                (value, sla_id, metric),
-            )
-        for metric, value in provider_batnas.items():
-            self._conn.execute(
-                "UPDATE sla_slo_configs SET provider_batna = ? WHERE sla_id = ? AND metric = ?",
-                (value, sla_id, metric),
-            )
-        self._conn.commit()
 
     def save_sla_profile(self, sla_id: str, role: str, profile: StakeholderProfile) -> None:
         self._conn.execute(

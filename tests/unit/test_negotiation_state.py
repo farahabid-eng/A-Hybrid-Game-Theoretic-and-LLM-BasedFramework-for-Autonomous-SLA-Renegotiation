@@ -1,7 +1,7 @@
 from sla_renegotiation.negotiation.state import NegotiationState
 
 
-def test_negotiation_state_structure(sample_client_profile, sample_provider_profile, sample_zopa):  # noqa: F811
+def test_negotiation_state_structure(sample_client_profile, sample_provider_profile, sample_zopa) -> None:  # noqa: F811
     state = NegotiationState(
         workflow_id="test-123",
         client_profile=sample_client_profile,

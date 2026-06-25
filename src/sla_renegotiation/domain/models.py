@@ -26,8 +26,6 @@ class SLOConfig(BaseModel):
     description: str
     event_type: EventType
     time_to_repair: int
-    client_batna: float | None = None
-    provider_batna: float | None = None
 
 
 class SLATemplate(BaseModel):

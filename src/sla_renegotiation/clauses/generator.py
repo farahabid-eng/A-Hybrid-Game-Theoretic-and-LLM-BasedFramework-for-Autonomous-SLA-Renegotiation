@@ -46,7 +46,7 @@ def generate_rc(workflow: Workflow) -> RenegotiationClause:
     value = _get_agreed_value(workflow)
     unit = violation.unit
     is_low_better = violation.event_type.is_low_better
-    ttr = _get_ttr(workflow)
+    _get_ttr(workflow)
 
     op = "<=" if is_low_better else ">="
     agreed_target = f"{metric} {op} {value}{unit}"

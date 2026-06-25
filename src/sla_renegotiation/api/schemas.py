@@ -4,11 +4,7 @@ from pydantic import BaseModel, Field
 class CreateWorkflowRequest(BaseModel):
     sla_id: str
     max_rounds: int = 10
-
-
-class SetBATNAsRequest(BaseModel):
-    client_batnas: dict[str, float]
-    provider_batnas: dict[str, float]
+    metric_weights: dict[str, float] | None = None
 
 
 class SetProfileRequest(BaseModel):
@@ -44,8 +40,6 @@ class SLOConfigResponse(BaseModel):
     description: str
     event_type: str
     time_to_repair: int
-    client_batna: float | None = None
-    provider_batna: float | None = None
 
 
 class SLASummaryResponse(BaseModel):
@@ -90,5 +84,3 @@ class SLASLOConfigResponse(BaseModel):
     description: str
     event_type: str
     time_to_repair: int
-    client_batna: float | None = None
-    provider_batna: float | None = None

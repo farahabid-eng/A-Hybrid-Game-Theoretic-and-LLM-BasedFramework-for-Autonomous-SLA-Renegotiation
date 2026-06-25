@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sla_renegotiation.api.dependencies import get_workflow_service
 from sla_renegotiation.api.schemas import (
     GenerateProfileRequest,
-    SetBATNAsRequest,
     SetProfileRequest,
     SLADetailResponse,
     SLASLOConfigResponse,
@@ -72,8 +71,6 @@ def get_sla_slos(
                 description=c.description,
                 event_type=c.event_type.value if hasattr(c.event_type, "value") else c.event_type,
                 time_to_repair=c.time_to_repair,
-                client_batna=c.client_batna,
-                provider_batna=c.provider_batna,
             )
             for c in configs
         ]
@@ -89,19 +86,6 @@ def get_sla_slos(
         )
         for slo in sla.slos
     ]
-
-
-@router.post("/{sla_id}/batnas")
-def set_sla_batnas(
-    sla_id: str,
-    body: SetBATNAsRequest,
-    svc: WorkflowService = Depends(get_workflow_service),
-) -> dict[str, str]:
-    try:
-        svc.set_sla_batnas(sla_id, body.client_batnas, body.provider_batnas)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    return {"status": "ok"}
 
 
 @router.post("/{sla_id}/profiles/{role}")

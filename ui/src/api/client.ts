@@ -14,7 +14,7 @@ function wsBase(): string {
   return url.toString().replace(/\/$/, "");
 }
 
-export async function initWorkflow(data: { sla_id: string; max_rounds?: number }) {
+export async function initWorkflow(data: { sla_id: string; max_rounds?: number; metric_weights?: Record<string, number> }) {
   const res = await fetch(`${httpBase()}/workflows`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

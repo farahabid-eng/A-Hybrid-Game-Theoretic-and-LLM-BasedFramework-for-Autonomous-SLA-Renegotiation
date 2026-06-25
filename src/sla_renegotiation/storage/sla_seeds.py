@@ -4,6 +4,7 @@ from sla_renegotiation.domain.models import SLATemplate, SLODefinition
 # ---------------------------------------------------------------------------
 # Predefined SLA Templates
 # Each entry maps violations (EventType) to their SLO target values.
+# All templates include a cost SLO with exact monthly amounts in €.
 # ---------------------------------------------------------------------------
 
 PREDEFINED_SLAS: dict[str, SLATemplate] = {
@@ -44,6 +45,14 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 event_type=EventType.ERROR_RATE_VIOLATION,
                 time_to_repair=10,
             ),
+            SLODefinition(
+                metric="cost",
+                target_value=2000,
+                unit="€",
+                description="Maximum monthly service cost",
+                event_type=EventType.COST_OVERAGE,
+                time_to_repair=720,
+            ),
         ],
     ),
     "premium-db": SLATemplate(
@@ -83,6 +92,14 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 event_type=EventType.ERROR_RATE_VIOLATION,
                 time_to_repair=5,
             ),
+            SLODefinition(
+                metric="cost",
+                target_value=15000,
+                unit="€",
+                description="Maximum monthly database service cost",
+                event_type=EventType.COST_OVERAGE,
+                time_to_repair=720,
+            ),
         ],
     ),
     "standard-hosting": SLATemplate(
@@ -113,6 +130,14 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 description="Sustained request throughput",
                 event_type=EventType.THROUGHPUT_VIOLATION,
                 time_to_repair=20,
+            ),
+            SLODefinition(
+                metric="cost",
+                target_value=500,
+                unit="€",
+                description="Maximum monthly hosting cost",
+                event_type=EventType.COST_OVERAGE,
+                time_to_repair=720,
             ),
         ],
     ),
@@ -152,6 +177,14 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 description="Cache miss / origin fetch error rate",
                 event_type=EventType.ERROR_RATE_VIOLATION,
                 time_to_repair=10,
+            ),
+            SLODefinition(
+                metric="cost",
+                target_value=10000,
+                unit="€",
+                description="Maximum monthly CDN and streaming cost",
+                event_type=EventType.COST_OVERAGE,
+                time_to_repair=720,
             ),
         ],
     ),
@@ -194,9 +227,9 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
             ),
             SLODefinition(
                 metric="cost",
-                target_value=1.15,
-                unit="x",
-                description="Maximum cost overage multiplier vs committed spend",
+                target_value=50000,
+                unit="€",
+                description="Maximum monthly enterprise platform cost",
                 event_type=EventType.COST_OVERAGE,
                 time_to_repair=1440,
             ),
@@ -247,6 +280,14 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
                 event_type=EventType.ERROR_RATE_VIOLATION,
                 time_to_repair=5,
             ),
+            SLODefinition(
+                metric="cost",
+                target_value=8000,
+                unit="€",
+                description="Maximum monthly Kubernetes cluster cost",
+                event_type=EventType.COST_OVERAGE,
+                time_to_repair=720,
+            ),
         ],
     ),
     "fintech-api": SLATemplate(
@@ -288,9 +329,9 @@ PREDEFINED_SLAS: dict[str, SLATemplate] = {
             ),
             SLODefinition(
                 metric="cost",
-                target_value=1.05,
-                unit="x",
-                description="Maximum cost overage vs committed transaction volume pricing",
+                target_value=25000,
+                unit="€",
+                description="Maximum monthly financial API cost",
                 event_type=EventType.COST_OVERAGE,
                 time_to_repair=720,
             ),

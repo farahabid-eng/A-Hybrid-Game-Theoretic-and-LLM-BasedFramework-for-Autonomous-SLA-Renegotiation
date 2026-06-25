@@ -1,9 +1,10 @@
-from typing import Annotated, Sequence, TypedDict
+from collections.abc import Sequence
+from typing import Annotated, TypedDict
 
 from langgraph.graph import add_messages
 
 from sla_renegotiation.domain.enums import RenegotiationStatus
-from sla_renegotiation.domain.models import Proposal, StakeholderProfile, ZOPA
+from sla_renegotiation.domain.models import ZOPA, Proposal, StakeholderProfile
 
 
 class NegotiationState(TypedDict):

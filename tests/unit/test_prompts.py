@@ -1,6 +1,6 @@
 from sla_renegotiation.llm.prompts import (
-    PROFILE_BUILDER_SYSTEM,
     NEGOTIATION_AGENT_SYSTEM,
+    PROFILE_BUILDER_SYSTEM,
     RC_GENERATOR_SYSTEM,
 )
 

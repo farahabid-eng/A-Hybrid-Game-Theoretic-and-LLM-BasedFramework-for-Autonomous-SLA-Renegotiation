@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ChatMessage from "../components/ChatMessage";
+import ReactMarkdown from "react-markdown";
 import StatusBadge from "../components/StatusBadge";
-import { connectNegotiationWS } from "../api/client";
+import { getWorkflow, connectNegotiationWS } from "../api/client";
 import type { StakeholderProfile } from "../components/ProfileTooltip";
+
+const TERMINAL_STATUSES = ["agreed", "max_rounds_reached", "failed"];
 
 export default function Negotiation() {
   const { id } = useParams();
@@ -23,12 +26,44 @@ export default function Negotiation() {
   const [clientProfile, setClientProfile] = useState<StakeholderProfile | null>(null);
   const [providerProfile, setProviderProfile] = useState<StakeholderProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const connectedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Ref to store negotiation start timestamp (ms since epoch)
+  const startTimestampRef = useRef<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<string>("");
 
+  // Load existing workflow data on mount
   useEffect(() => {
     if (!id) return;
+    getWorkflow(id).then((data) => {
+      if (data.proposals) {
+        setMessages(
+          data.proposals.map((p: { role: string; content: string; round_number: number }) => ({
+            role: p.role,
+            message: p.content,
+            round: p.round_number,
+          })),
+        );
+      }
+      if (data.client_profile) setClientProfile(data.client_profile);
+      if (data.provider_profile) setProviderProfile(data.provider_profile);
+      setStatus(data.status);
+      if (data.rc) setRc(data.rc);
+
+      if (TERMINAL_STATUSES.includes(data.status)) {
+        setConnected(true);
+      }
+      setInitialized(true);
+    });
+  }, [id]);
+
+  // Connect WS only after initialized and not terminal
+  useEffect(() => {
+    if (!id || !initialized) return;
+    if (TERMINAL_STATUSES.includes(status)) return;
+
     const ws = connectNegotiationWS(id);
     wsRef.current = ws;
 
@@ -47,6 +82,10 @@ export default function Negotiation() {
       clearTimeout(timeout);
       connectedRef.current = true;
       setConnected(true);
+      // Record start time when negotiation stream begins
+      if (startTimestampRef.current === null) {
+        startTimestampRef.current = Date.now();
+      }
       ws.send(JSON.stringify({ type: "start" }));
     };
 
@@ -68,7 +107,9 @@ export default function Negotiation() {
       if (ws !== wsRef.current) return;
       const data = JSON.parse(event.data);
 
-      if (data.type === "profiling.progress") {
+      if (data.type === "negotiation.resume") {
+        setStatus(data.status);
+      } else if (data.type === "profiling.progress") {
         setProfilingStatus(data.status);
       } else if (data.type === "profiling.complete") {
         setStatus("profiling");
@@ -110,17 +151,42 @@ export default function Negotiation() {
       clearTimeout(timeout);
       if (ws.readyState <= 1) ws.close();
     };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, initialized]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingMessage]);
+
+  const isTerminal = TERMINAL_STATUSES.includes(status);
+
+  // Compute elapsed time when reaching a terminal status
+  useEffect(() => {
+    if (isTerminal && startTimestampRef.current !== null) {
+      const diffMs = Date.now() - startTimestampRef.current;
+      const totalSec = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+      setElapsedTime(`${minutes}m ${seconds}s`);
+    }
+  }, [status]);
+
+  if (!initialized) {
+    return (
+      <div className="max-w-3xl mx-auto mt-8 text-center text-gray-500">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Negotiation</h1>
         <StatusBadge status={status} />
+        {elapsedTime && (
+          <div className="text-sm text-gray-600 mt-1">🕒 Duration: {elapsedTime}</div>
+        )}
       </div>
 
       {error && (
@@ -129,13 +195,13 @@ export default function Negotiation() {
         </div>
       )}
 
-      {!connected && !error && (
+      {!connected && !error && messages.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <p>Connecting to negotiation server...</p>
         </div>
       )}
 
-      {connected && messages.length === 0 && !streamingMessage && (
+      {connected && messages.length === 0 && !streamingMessage && !isTerminal && (
         <div className="text-center py-12 text-gray-500">
           <p>{profilingStatus || "Profiling stakeholders and computing ZOPA..."}</p>
         </div>
@@ -188,9 +254,9 @@ export default function Negotiation() {
           <h2 className="font-semibold text-lg mb-3">
             Renegotiation Clause Generated
           </h2>
-          <pre className="text-xs bg-white rounded p-4 overflow-x-auto border">
-            {JSON.stringify(rc, null, 2)}
-          </pre>
+          <div className="text-gray-800 text-sm bg-white rounded p-4 border [&_p]:m-0">
+            <ReactMarkdown>{rc.clause_text as string}</ReactMarkdown>
+          </div>
           <button
             onClick={() => navigate(`/workflows/${id}/validation`)}
             className="mt-4 bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700"

@@ -31,7 +31,6 @@ def sample_client_form():
         priorities={"latency": 0.6, "availability": 0.4},
         flexibility_margins={"latency": 0.2, "availability": 0.1},
         constraints=["Cannot exceed 200ms p99"],
-        batna=130.0,
     )
 
 
@@ -43,7 +42,6 @@ def sample_provider_form():
         priorities={"latency": 0.3, "cost": 0.7},
         flexibility_margins={"latency": 0.15, "cost": 0.2},
         cost_considerations="Hardware refresh increased costs 15%",
-        batna=110.0,
     )
 
 
@@ -54,8 +52,6 @@ def sample_client_profile():
         objectives=["Reduce latency", "Maintain availability"],
         priorities={"latency": 0.6, "availability": 0.4},
         flexibility_margins={"latency": 0.2, "availability": 0.1},
-        constraints=["Cannot exceed 200ms p99"],
-        batna=130.0,
         context_description="Low-latency gaming platform",
     )
 
@@ -67,19 +63,17 @@ def sample_provider_profile():
         objectives=["Control costs", "Optimize resource usage"],
         priorities={"latency": 0.3, "cost": 0.7},
         flexibility_margins={"latency": 0.15, "cost": 0.2},
-        constraints=["No infrastructure changes before Q3"],
-        batna=110.0,
         context_description="Provider with hardware refresh constraints",
     )
 
 
 @pytest.fixture
-def sample_zopa(sample_client_profile, sample_provider_profile, sample_violation):
+def sample_zopa(sample_violation):
     from sla_renegotiation.zopa.calculator import compute_zopa
 
     return compute_zopa(
-        sample_client_profile,
-        sample_provider_profile,
+        client_batna=130.0,
+        provider_batna=110.0,
         violated_event_type=sample_violation.event_type,
         agreed_value=sample_violation.agreed_value,
     )
@@ -96,8 +90,3 @@ def sample_workflow(sample_violation):
 @pytest.fixture
 def store():
     return WorkflowStore()
-
-
-@pytest.fixture
-def fake_ai_message():
-    return AIMessage(content="Test response")

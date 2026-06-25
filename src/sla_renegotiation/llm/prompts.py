@@ -43,6 +43,7 @@ Round {current_round} of {max_rounds}
 * Be aware that only {max_rounds} rounds are available. Gradually move toward agreement and avoid repeating the same offer.
 * Concessions should become more realistic as the final round approaches.
 * If the latest proposal is acceptable, explicitly state acceptance ("I accept", "Agreed").
+* If a metric shows severe degradation (e.g., availability < 95% or >10% deviation from SLA), enter a degraded-state regime where proposals must be anchored to the observed value and realistic recovery levels, not the original SLA target; for example, if target is 99.9% and observed is 85%, valid negotiation should stay in a realistic recovery range such as 88%–95%, not 99.x%.
 
 ## Violation Awareness
 
@@ -139,7 +140,7 @@ Generate a single natural-language renegotiation clause based on:
 - Do not mention negotiation rounds, offers, counteroffers, or bargaining behavior.
 - Do not output JSON.
 - Generate only the final clause.
-
+- The final clause must contain all the metrics that have been modified  ( if they agreed on new values for the new metrics write it)
 ## Style Requirements
 - Formal and contractual.
 - Clear and concise.
@@ -148,7 +149,7 @@ Generate a single natural-language renegotiation clause based on:
 - Preserve units exactly as negotiated (e.g., req/s, %, ms).
 
 ## Output Template
-Upon occurrence of a **{violated_metric}** violation, **corrective adjustment** is activated to maintain **[agreed target]**. This condition remains in effect until **[stop condition]**, after which normal SLA conditions resume and the clause is deactivated.
+Upon occurrence of a **{violated_metric}** violation, **corrective adjustment** is activated to maintain **[agreed target]**. This condition remains in effect until the time to repair (TTR) is over or the value of the violated SLO is restored  , after which normal SLA conditions resume and the clause is deactivated.
 
 ## Inputs
 Violated metric:

@@ -10,7 +10,6 @@ from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.services.workflow import WorkflowService
-from sla_renegotiation.zopa.calculator import narrow_zopa
 
 router = APIRouter(prefix="/workflows/{workflow_id}/negotiation", tags=["negotiation"])
 
@@ -199,13 +198,6 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                             }
                         )
 
-                if round_zopa:
-                    narrowed = round_zopa
-                    if len(workflow.proposals) >= 2:
-                        narrowed = narrow_zopa(narrowed, workflow.proposals[-2])
-                        narrowed = narrow_zopa(narrowed, workflow.proposals[-1])
-                    workflow.zopa = narrowed
-
                 proposals = (
                     workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
                 )
@@ -241,7 +233,7 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                 ):
                     break
 
-            workflow = service.finalize(workflow_id)
+            workflow = await service.finalize(workflow_id)
             if workflow and workflow.rc:
                 await websocket.send_json(
                     {
@@ -253,6 +245,11 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
 
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "detail": f"Negotiation failed: {str(e)}"})
+        except:
+            pass
 
 
 def _to_response(w: object) -> WorkflowResponse:

@@ -30,6 +30,9 @@ export default function Negotiation() {
   const wsRef = useRef<WebSocket | null>(null);
   const connectedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Ref to store negotiation start timestamp (ms since epoch)
+  const startTimestampRef = useRef<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<string>("");
 
   // Load existing workflow data on mount
   useEffect(() => {
@@ -79,6 +82,10 @@ export default function Negotiation() {
       clearTimeout(timeout);
       connectedRef.current = true;
       setConnected(true);
+      // Record start time when negotiation stream begins
+      if (startTimestampRef.current === null) {
+        startTimestampRef.current = Date.now();
+      }
       ws.send(JSON.stringify({ type: "start" }));
     };
 
@@ -153,6 +160,17 @@ export default function Negotiation() {
 
   const isTerminal = TERMINAL_STATUSES.includes(status);
 
+  // Compute elapsed time when reaching a terminal status
+  useEffect(() => {
+    if (isTerminal && startTimestampRef.current !== null) {
+      const diffMs = Date.now() - startTimestampRef.current;
+      const totalSec = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+      setElapsedTime(`${minutes}m ${seconds}s`);
+    }
+  }, [status]);
+
   if (!initialized) {
     return (
       <div className="max-w-3xl mx-auto mt-8 text-center text-gray-500">
@@ -166,6 +184,9 @@ export default function Negotiation() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Negotiation</h1>
         <StatusBadge status={status} />
+        {elapsedTime && (
+          <div className="text-sm text-gray-600 mt-1">🕒 Duration: {elapsedTime}</div>
+        )}
       </div>
 
       {error && (

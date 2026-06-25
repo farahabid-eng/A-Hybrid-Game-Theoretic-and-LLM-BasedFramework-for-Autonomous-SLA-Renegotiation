@@ -51,9 +51,7 @@ def generate_rc(workflow: Workflow) -> RenegotiationClause:
     op = "<=" if is_low_better else ">="
     agreed_target = f"{metric} {op} {value}{unit}"
 
-    rev_op = ">" if is_low_better else "<"
-    ttr_part = f"TTR={ttr}min" if ttr is not None else "TTR"
-    stop_condition = f"(t >= {ttr_part}) OR ({metric} {rev_op} {value}{unit})"
+    stop_condition = "the time to repair (TTR) is over or the value of the violated SLO is restored"
 
     clause_text = _format_clause_text(metric, agreed_target, stop_condition)
 

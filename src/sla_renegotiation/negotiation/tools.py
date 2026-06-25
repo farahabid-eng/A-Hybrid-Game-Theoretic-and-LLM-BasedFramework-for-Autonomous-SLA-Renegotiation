@@ -16,6 +16,9 @@ def _propose_adjustment(
     Provider + low_is_better  → pushes toward hi (wants higher values)
     Provider + high_is_better → pushes toward lo (wants lower values)
     """
+    if metric not in zopa.feasible_range_per_metric:
+        return desired_value
+
     lo, hi = zopa.feasible_range_per_metric[metric]
     is_low = zopa.low_is_better.get(metric, True)
     clamped = max(lo, min(desired_value, hi))

@@ -1,20 +1,23 @@
 from datetime import datetime
+from langchain_core.prompts import ChatPromptTemplate
 
-from sla_renegotiation.clauses.generator import generate_rc
 from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
 from sla_renegotiation.domain.models import (
+    RenegotiationClause,
     SLOConfig,
     StakeholderProfile,
     Violation,
     Workflow,
 )
+from sla_renegotiation.llm.factory import build_model, llm_rate_limiter
+from sla_renegotiation.llm.prompts import RC_GENERATOR_SYSTEM
 from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.profiles.builder import build_profile
 from sla_renegotiation.storage.in_memory import WorkflowStore
 from sla_renegotiation.storage.sla_seeds import get_sla
-from sla_renegotiation.zopa.calculator import compute_multi_metric_zopa, narrow_zopa
+from sla_renegotiation.zopa.calculator import compute_multi_metric_zopa
 
 
 class WorkflowService:
@@ -190,6 +193,27 @@ class WorkflowService:
             violated_metric=workflow.violation.metric,
         )
 
+        # Enforce negotiation for the violated metric to be between the observed value and the original agreed value
+        if workflow.violation and workflow.zopa:
+            violated_metric = workflow.violation.metric
+            observed_value = workflow.violation.observed_value
+            agreed_value = workflow.violation.agreed_value
+            is_low_better = workflow.zopa.low_is_better.get(violated_metric, True)
+
+            # Enforce "Degraded Regime" for severe violations (>10% deviation) as per NEGOTIATION_AGENT_SYSTEM.
+            # If severe, cap the negotiation at a "realistic recovery" level rather than the original target.
+            deviation = abs(agreed_value - observed_value) / agreed_value if agreed_value != 0 else 0
+            if deviation > 0.10:
+                gap = abs(agreed_value - observed_value)
+                # Cap recovery at 30% of the gap back toward the target to ensure a realistic range
+                recovery_limit = observed_value + (gap * 0.3) if not is_low_better else observed_value - (gap * 0.3)
+                new_lo, new_hi = (recovery_limit, observed_value) if is_low_better else (observed_value, recovery_limit)
+            else:
+                # Normal range [observed, agreed] for minor violations
+                new_lo, new_hi = (agreed_value, observed_value) if is_low_better else (observed_value, agreed_value)
+
+            workflow.zopa.feasible_range_per_metric[violated_metric] = (min(new_lo, new_hi), max(new_lo, new_hi))
+
         if not workflow.zopa.feasible_range_per_metric:
             workflow.status = RenegotiationStatus.FAILED
         else:
@@ -247,15 +271,6 @@ class WorkflowService:
         if provider_proposal:
             workflow.proposals.append(provider_proposal)
 
-        # Narrow ZOPA after both proposals in the round
-        if round_zopa:
-            narrowed = round_zopa
-            if client_proposal:
-                narrowed = narrow_zopa(narrowed, client_proposal)
-            if provider_proposal:
-                narrowed = narrow_zopa(narrowed, provider_proposal)
-            workflow.zopa = narrowed
-
         if (
             client_proposal
             and provider_proposal
@@ -271,11 +286,36 @@ class WorkflowService:
         self._store.save(workflow)
         return workflow
 
-    def finalize(self, workflow_id: str) -> Workflow | None:
+    async def finalize(self, workflow_id: str) -> Workflow | None:
         workflow = self._store.get(workflow_id)
-        if not workflow:
+        if not workflow or not workflow.violation:
             return None
-        workflow.rc = generate_rc(workflow)
+
+        # Prepare context for the RC generation prompt
+        violated_metric = workflow.violation.metric
+        history = _format_history(workflow.proposals)
+        
+        # Use the last two proposals as the core of the agreement
+        agreement = ""
+        if len(workflow.proposals) >= 2:
+            agreement = f"Client: {workflow.proposals[-2].content}\nProvider: {workflow.proposals[-1].content}"
+
+        ttr = workflow.violation.time_to_repair or "not specified"
+        recovery_params = f"Time-to-Repair (TTR): {ttr} minutes"
+
+        prompt = ChatPromptTemplate.from_template(RC_GENERATOR_SYSTEM)
+        model = build_model("rc")
+        chain = prompt | model
+
+        async with llm_rate_limiter:
+            response = await chain.ainvoke({
+                "violated_metric": violated_metric,
+                "history": history,
+                "agreement": agreement,
+                "recovery_parameters": recovery_params
+            })
+
+        workflow.rc = RenegotiationClause(clause_text=str(response.content))
         workflow.status = RenegotiationStatus.AGREED
         workflow.updated_at = datetime.now().isoformat()
         self._store.save(workflow)

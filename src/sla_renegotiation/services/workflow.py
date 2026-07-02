@@ -6,6 +6,7 @@ from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
 from sla_renegotiation.domain.models import (
     ProfileEvaluationResult,
     RenegotiationClause,
+    RenegotiationEvaluationResult,
     SLOConfig,
     StakeholderProfile,
     Violation,
@@ -15,6 +16,7 @@ from sla_renegotiation.llm.factory import build_model, llm_rate_limiter
 from sla_renegotiation.llm.prompts import RC_GENERATOR_SYSTEM
 from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
+from sla_renegotiation.negotiation.evaluator import evaluate_renegotiation as eval_renegotiation
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.profiles.builder import build_profile
 from sla_renegotiation.profiles.evaluator import evaluate_profile
@@ -361,6 +363,44 @@ class WorkflowService:
         workflow.updated_at = datetime.now().isoformat()
         self._store.save(workflow)
         return workflow
+
+    def evaluate_renegotiation(
+        self,
+        workflow_id: str,
+        human_realism_score: float | None = None,
+    ) -> RenegotiationEvaluationResult:
+        workflow = self._store.get(workflow_id)
+        if not workflow:
+            raise ValueError("Workflow not found")
+        if not workflow.violation:
+            raise ValueError("Workflow has no violation")
+        if not workflow.client_profile or not workflow.provider_profile:
+            raise ValueError("Workflow missing stakeholder profiles")
+        if not workflow.zopa:
+            raise ValueError("Workflow has no ZOPA computed")
+
+        slo_configs = self._store.get_slo_configs(workflow_id)
+        sla = get_sla(workflow.sla_id) if workflow.sla_id else None
+
+        result = eval_renegotiation(
+            sla=sla,
+            slo_configs=slo_configs,
+            violation=workflow.violation,
+            zopa=workflow.zopa,
+            client_profile=workflow.client_profile,
+            provider_profile=workflow.provider_profile,
+            proposals=workflow.proposals,
+            rc=workflow.rc,
+        )
+
+        if human_realism_score is not None:
+            result.negotiation_realism_score = human_realism_score
+            result.negotiation_realism_reasoning = (
+                f"Overridden by human expert (score: {human_realism_score}). "
+                + result.negotiation_realism_reasoning
+            )
+
+        return result
 
     def get_workflow(self, workflow_id: str) -> Workflow | None:
         return self._store.get(workflow_id)

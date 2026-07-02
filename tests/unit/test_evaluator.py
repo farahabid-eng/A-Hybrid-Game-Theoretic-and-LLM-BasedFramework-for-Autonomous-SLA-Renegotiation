@@ -42,7 +42,7 @@ def test_evaluate_profile_success() -> None:
             profile=profile,
         )
 
-        mock_build.assert_called_once_with("profiling", temperature=0.0)
+        mock_build.assert_called_once_with("judge", temperature=0.0)
         mock_model.with_structured_output.assert_called_once_with(ProfileEvaluationResult)
 
         assert res.intent_faithfulness_score == 90.0

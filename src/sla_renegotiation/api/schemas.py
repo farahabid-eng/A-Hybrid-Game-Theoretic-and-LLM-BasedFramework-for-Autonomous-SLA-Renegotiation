@@ -38,6 +38,26 @@ class ProfileEvaluationResponse(BaseModel):
     overall_score: float
 
 
+class EvaluateRenegotiationRequest(BaseModel):
+    human_realism_score: float | None = None
+
+
+class RenegotiationEvaluationResponse(BaseModel):
+    sla_constraint_compliance_score: float
+    sla_constraint_compliance_reasoning: str
+    zopa_compliance_score: float
+    zopa_compliance_reasoning: str
+    stakeholder_profile_alignment_score: float
+    stakeholder_profile_alignment_reasoning: str
+    concession_strategy_coherence_score: float
+    concession_strategy_coherence_reasoning: str
+    utility_consistency_score: float
+    utility_consistency_reasoning: str
+    negotiation_realism_score: float
+    negotiation_realism_reasoning: str
+    overall_score: float
+
+
 class SimulateViolationRequest(BaseModel):
     event_type: str
     observed_value: float

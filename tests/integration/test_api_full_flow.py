@@ -154,3 +154,103 @@ def test_profile_evaluation_endpoint() -> None:
         data = resp.json()
         assert data["intent_faithfulness_score"] == 80.0
         assert data["overall_score"] == 87.5
+
+
+def test_renegotiation_evaluation_endpoint() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from sla_renegotiation.domain.models import RenegotiationEvaluationResult
+
+    resp = client.post("/workflows", json={"sla_id": "basic-api"})
+    wf_id = resp.json()["id"]
+
+    resp = client.post(
+        f"/workflows/{wf_id}/violation",
+        json={"event_type": "latency_violation", "observed_value": 200.0},
+    )
+    assert resp.status_code == 200
+
+    resp = client.post(f"/workflows/{wf_id}/negotiation/profile")
+    assert resp.status_code == 200
+
+    mock_result = RenegotiationEvaluationResult(
+        sla_constraint_compliance_score=85.0,
+        sla_constraint_compliance_reasoning="Compliant.",
+        zopa_compliance_score=90.0,
+        zopa_compliance_reasoning="Within ZOPA.",
+        stakeholder_profile_alignment_score=80.0,
+        stakeholder_profile_alignment_reasoning="Aligned.",
+        concession_strategy_coherence_score=75.0,
+        concession_strategy_coherence_reasoning="Coherent.",
+        utility_consistency_score=88.0,
+        utility_consistency_reasoning="Consistent.",
+        negotiation_realism_score=70.0,
+        negotiation_realism_reasoning="Realistic.",
+    )
+
+    mock_runnable = MagicMock()
+    mock_runnable.return_value = mock_result
+    mock_runnable.invoke.return_value = mock_result
+    mock_model = MagicMock()
+    mock_model.with_structured_output.return_value = mock_runnable
+
+    with patch(
+        "sla_renegotiation.negotiation.evaluator.build_model", return_value=mock_model
+    ):
+        resp = client.post(f"/workflows/{wf_id}/negotiation/evaluate", json={})
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["sla_constraint_compliance_score"] == 85.0
+        assert data["overall_score"] == 81.33333333333333
+
+
+def test_renegotiation_evaluation_with_human_override() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from sla_renegotiation.domain.models import RenegotiationEvaluationResult
+
+    resp = client.post("/workflows", json={"sla_id": "basic-api"})
+    wf_id = resp.json()["id"]
+
+    resp = client.post(
+        f"/workflows/{wf_id}/violation",
+        json={"event_type": "latency_violation", "observed_value": 200.0},
+    )
+    assert resp.status_code == 200
+
+    resp = client.post(f"/workflows/{wf_id}/negotiation/profile")
+    assert resp.status_code == 200
+
+    mock_result = RenegotiationEvaluationResult(
+        sla_constraint_compliance_score=85.0,
+        sla_constraint_compliance_reasoning="Compliant.",
+        zopa_compliance_score=90.0,
+        zopa_compliance_reasoning="Within ZOPA.",
+        stakeholder_profile_alignment_score=80.0,
+        stakeholder_profile_alignment_reasoning="Aligned.",
+        concession_strategy_coherence_score=75.0,
+        concession_strategy_coherence_reasoning="Coherent.",
+        utility_consistency_score=88.0,
+        utility_consistency_reasoning="Consistent.",
+        negotiation_realism_score=70.0,
+        negotiation_realism_reasoning="LLM realism assessment.",
+    )
+
+    mock_runnable = MagicMock()
+    mock_runnable.return_value = mock_result
+    mock_runnable.invoke.return_value = mock_result
+    mock_model = MagicMock()
+    mock_model.with_structured_output.return_value = mock_runnable
+
+    with patch(
+        "sla_renegotiation.negotiation.evaluator.build_model", return_value=mock_model
+    ):
+        resp = client.post(
+            f"/workflows/{wf_id}/negotiation/evaluate",
+            json={"human_realism_score": 95.0},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["negotiation_realism_score"] == 95.0
+        assert "Overridden by human expert" in data["negotiation_realism_reasoning"]
+        assert data["overall_score"] > 0

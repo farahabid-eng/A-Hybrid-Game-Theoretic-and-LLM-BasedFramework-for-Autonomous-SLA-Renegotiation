@@ -5,7 +5,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
 from sla_renegotiation.api.dependencies import get_workflow_service
-from sla_renegotiation.api.schemas import WorkflowResponse
+from sla_renegotiation.api.schemas import (
+    EvaluateRenegotiationRequest,
+    RenegotiationEvaluationResponse,
+    WorkflowResponse,
+)
 from sla_renegotiation.domain.enums import RenegotiationStatus
 from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
@@ -35,6 +39,37 @@ async def run_round(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return _to_response(workflow)
+
+
+@router.post("/evaluate", response_model=RenegotiationEvaluationResponse)
+def evaluate_negotiation(
+    workflow_id: str,
+    body: EvaluateRenegotiationRequest,
+    svc: WorkflowService = Depends(get_workflow_service),
+) -> RenegotiationEvaluationResponse:
+    try:
+        result = svc.evaluate_renegotiation(
+            workflow_id,
+            human_realism_score=body.human_realism_score,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return RenegotiationEvaluationResponse(
+        sla_constraint_compliance_score=result.sla_constraint_compliance_score,
+        sla_constraint_compliance_reasoning=result.sla_constraint_compliance_reasoning,
+        zopa_compliance_score=result.zopa_compliance_score,
+        zopa_compliance_reasoning=result.zopa_compliance_reasoning,
+        stakeholder_profile_alignment_score=result.stakeholder_profile_alignment_score,
+        stakeholder_profile_alignment_reasoning=result.stakeholder_profile_alignment_reasoning,
+        concession_strategy_coherence_score=result.concession_strategy_coherence_score,
+        concession_strategy_coherence_reasoning=result.concession_strategy_coherence_reasoning,
+        utility_consistency_score=result.utility_consistency_score,
+        utility_consistency_reasoning=result.utility_consistency_reasoning,
+        negotiation_realism_score=result.negotiation_realism_score,
+        negotiation_realism_reasoning=result.negotiation_realism_reasoning,
+        overall_score=result.overall_score,
+    )
 
 
 @router.websocket("/ws")

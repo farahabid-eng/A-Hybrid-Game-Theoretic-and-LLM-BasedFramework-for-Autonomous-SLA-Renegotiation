@@ -62,13 +62,21 @@ class StakeholderProfile(BaseModel):
 
 class ProfileEvaluationResult(BaseModel):
     intent_faithfulness_score: float = Field(description="Score for Intent Faithfulness, 0-100")
-    intent_faithfulness_reasoning: str = Field(description="Reasoning for Intent Faithfulness score")
-    information_completeness_score: float = Field(description="Score for Information Completeness, 0-100")
-    information_completeness_reasoning: str = Field(description="Reasoning for Information Completeness score")
+    intent_faithfulness_reasoning: str = Field(
+        description="Reasoning for Intent Faithfulness score"
+    )
+    information_completeness_score: float = Field(
+        description="Score for Information Completeness, 0-100"
+    )
+    information_completeness_reasoning: str = Field(
+        description="Reasoning for Information Completeness score"
+    )
     non_fabrication_score: float = Field(description="Score for Non-Fabrication, 0-100")
     non_fabrication_reasoning: str = Field(description="Reasoning for Non-Fabrication score")
     clarity_and_usability_score: float = Field(description="Score for Clarity and Usability, 0-100")
-    clarity_and_usability_reasoning: str = Field(description="Reasoning for Clarity and Usability score")
+    clarity_and_usability_reasoning: str = Field(
+        description="Reasoning for Clarity and Usability score"
+    )
 
     @property
     def overall_score(self) -> float:
@@ -98,6 +106,48 @@ class Proposal(BaseModel):
 
 class RenegotiationClause(BaseModel):
     clause_text: str
+
+
+class RenegotiationEvaluationResult(BaseModel):
+    sla_constraint_compliance_score: float = Field(
+        description="Score for SLA Constraint Compliance, 0-100"
+    )
+    sla_constraint_compliance_reasoning: str = Field(
+        description="Reasoning for SLA Constraint Compliance score"
+    )
+    zopa_compliance_score: float = Field(description="Score for ZOPA Compliance, 0-100")
+    zopa_compliance_reasoning: str = Field(description="Reasoning for ZOPA Compliance score")
+    stakeholder_profile_alignment_score: float = Field(
+        description="Score for Stakeholder Profile Alignment, 0-100"
+    )
+    stakeholder_profile_alignment_reasoning: str = Field(
+        description="Reasoning for Stakeholder Profile Alignment score"
+    )
+    concession_strategy_coherence_score: float = Field(
+        description="Score for Concession Strategy Coherence, 0-100"
+    )
+    concession_strategy_coherence_reasoning: str = Field(
+        description="Reasoning for Concession Strategy Coherence score"
+    )
+    utility_consistency_score: float = Field(description="Score for Utility Consistency, 0-100")
+    utility_consistency_reasoning: str = Field(
+        description="Reasoning for Utility Consistency score"
+    )
+    negotiation_realism_score: float = Field(description="Score for Negotiation Realism, 0-100")
+    negotiation_realism_reasoning: str = Field(
+        description="Reasoning for Negotiation Realism score"
+    )
+
+    @property
+    def overall_score(self) -> float:
+        return (
+            self.sla_constraint_compliance_score
+            + self.zopa_compliance_score
+            + self.stakeholder_profile_alignment_score
+            + self.concession_strategy_coherence_score
+            + self.utility_consistency_score
+            + self.negotiation_realism_score
+        ) / 6.0
 
 
 class Workflow(BaseModel):

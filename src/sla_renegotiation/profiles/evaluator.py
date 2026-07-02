@@ -37,7 +37,7 @@ def evaluate_profile(
         ]
     )
 
-    model = build_model("profiling", temperature=0.0)
+    model = build_model("judge", temperature=0.0)
     chain = prompt | model.with_structured_output(ProfileEvaluationResult)
 
     result = chain.invoke(

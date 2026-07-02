@@ -12,6 +12,7 @@ _MODEL_KEY_MAP: dict[str, str] = {
     "client": settings.client_model,
     "provider": settings.provider_model,
     "profiling": settings.profiling_model,
+    "judge": settings.judge_model,
     "rc": settings.rc_model,
 }
 

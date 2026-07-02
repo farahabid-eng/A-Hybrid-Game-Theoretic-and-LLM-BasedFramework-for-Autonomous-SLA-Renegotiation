@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     client_model: str = ""
     provider_model: str = ""
     profiling_model: str = ""
+    judge_model: str = ""
     rc_model: str = ""
 
     max_negotiation_rounds: int = 10

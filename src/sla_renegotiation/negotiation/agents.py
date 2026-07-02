@@ -7,10 +7,14 @@ from sla_renegotiation.domain.enums import NegotiationRole
 from sla_renegotiation.domain.models import ZOPA, Proposal, StakeholderProfile
 from sla_renegotiation.llm.factory import build_model, llm_rate_limiter
 from sla_renegotiation.llm.prompts import NEGOTIATION_AGENT_SYSTEM
-from sla_renegotiation.negotiation.tools import _propose_adjustment, make_propose_adjustment
+from sla_renegotiation.negotiation.tools import (
+    _propose_adjustment,
+    make_compute_utility,
+    make_propose_adjustment,
+)
 from sla_renegotiation.negotiation.validation import validate_proposal
 
-_SAFE_TOOL_NAMES = {"propose_adjustment"}
+_SAFE_TOOL_NAMES = {"propose_adjustment", "compute_utility"}
 
 
 class NegotiationAgent:
@@ -49,9 +53,10 @@ class NegotiationAgent:
         )
 
         propose_tool = make_propose_adjustment(zopa)
+        compute_utility_tool = make_compute_utility(profile, zopa, NegotiationRole(self.role))
         agent = create_agent(
             model=model,
-            tools=[propose_tool],
+            tools=[propose_tool, compute_utility_tool],
             system_prompt=system_prompt,
             name=self.role,
         )

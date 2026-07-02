@@ -234,21 +234,6 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                 )
 
                 provider_history = _format_history(workflow.proposals)
-                if client_proposal and client_proposal.structured_adjustments:
-                    provider_history += (
-                        f"\n\nUtility Evaluation: The client's proposal scored "
-                        f"{client_utility_score:.4f} (your acceptance threshold: "
-                        f"{workflow.provider_profile.acceptance_threshold}). "
-                    )
-                    if client_threshold_met:
-                        provider_history += (
-                            "This meets the threshold — proceed with qualitative assessment."
-                        )
-                    else:
-                        provider_history += (
-                            "This is BELOW the threshold — reject without qualitative review "
-                            "and generate a counter-offer."
-                        )
 
                 await websocket.send_json(
                     {

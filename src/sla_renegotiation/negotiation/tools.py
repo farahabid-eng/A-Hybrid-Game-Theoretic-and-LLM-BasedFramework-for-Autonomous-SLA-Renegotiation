@@ -1,6 +1,8 @@
 from langchain_core.tools import BaseTool, tool
 
-from sla_renegotiation.domain.models import ZOPA
+from sla_renegotiation.domain.enums import NegotiationRole
+from sla_renegotiation.domain.models import ZOPA, Proposal, StakeholderProfile
+from sla_renegotiation.negotiation.scoring import compute_utility_score
 
 
 def _propose_adjustment(
@@ -46,3 +48,34 @@ def make_propose_adjustment(zopa: ZOPA) -> BaseTool:
         return _propose_adjustment(role, metric, desired_value, zopa)
 
     return propose_adjustment
+
+
+def make_compute_utility(
+    profile: StakeholderProfile,
+    zopa: ZOPA,
+    role: NegotiationRole,
+) -> BaseTool:
+    @tool
+    def compute_utility(adjustments: dict[str, float]) -> float:
+        """Calculate the utility score for a set of proposed metric adjustments.
+
+        Uses the weighted additive utility model U(x) = sum_i w_i * x_i where
+        x_i is the normalized value of metric i and w_i its weight from the
+        evaluator's profile priorities. Returns a score between 0.0 and 1.0.
+
+        Call this tool with the counterparty's proposed adjustments to evaluate
+        whether the proposal meets your acceptance threshold.
+
+        Args:
+            adjustments: Dictionary mapping metric names to proposed values,
+                         e.g. {"latency": 80.0, "availability": 99.5}.
+        """
+        mock_proposal = Proposal(
+            round_number=0,
+            role=role,
+            content="",
+            structured_adjustments=adjustments,
+        )
+        return compute_utility_score(mock_proposal, profile, zopa, role)
+
+    return compute_utility

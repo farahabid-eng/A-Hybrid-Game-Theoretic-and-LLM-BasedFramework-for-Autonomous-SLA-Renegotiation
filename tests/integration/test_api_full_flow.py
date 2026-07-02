@@ -194,9 +194,7 @@ def test_renegotiation_evaluation_endpoint() -> None:
     mock_model = MagicMock()
     mock_model.with_structured_output.return_value = mock_runnable
 
-    with patch(
-        "sla_renegotiation.negotiation.evaluator.build_model", return_value=mock_model
-    ):
+    with patch("sla_renegotiation.negotiation.evaluator.build_model", return_value=mock_model):
         resp = client.post(f"/workflows/{wf_id}/negotiation/evaluate", json={})
         assert resp.status_code == 200, resp.text
         data = resp.json()
@@ -242,9 +240,7 @@ def test_renegotiation_evaluation_with_human_override() -> None:
     mock_model = MagicMock()
     mock_model.with_structured_output.return_value = mock_runnable
 
-    with patch(
-        "sla_renegotiation.negotiation.evaluator.build_model", return_value=mock_model
-    ):
+    with patch("sla_renegotiation.negotiation.evaluator.build_model", return_value=mock_model):
         resp = client.post(
             f"/workflows/{wf_id}/negotiation/evaluate",
             json={"human_realism_score": 95.0},

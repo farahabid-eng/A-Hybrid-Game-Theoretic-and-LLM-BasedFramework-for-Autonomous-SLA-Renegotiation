@@ -1,21 +1,81 @@
 from pydantic import BaseModel, Field
 
+from sla_renegotiation.domain.models import StakeholderProfile
+
 
 class CreateWorkflowRequest(BaseModel):
-    event_type: str = "latency_violation"
-    observed_value: float
-    agreed_value: float | None = None
-    unit: str = ""
-    sla_id: str | None = None
-    time_to_repair: int | None = None
-    description: str = ""
+    sla_id: str
     max_rounds: int = 10
+    metric_weights: dict[str, float] | None = None
+
+
+class SetProfileRequest(BaseModel):
+    objectives: list[str]
+    priorities: dict[str, float]
+    flexibility_margins: dict[str, float]
+    context_description: str
+    tone: str = "neutral"
+
+
+class GenerateProfileRequest(BaseModel):
+    context: str
+
+
+class EvaluateProfileRequest(BaseModel):
+    context: str
+    profile: StakeholderProfile
+
+
+class ProfileEvaluationResponse(BaseModel):
+    intent_faithfulness_score: float
+    intent_faithfulness_reasoning: str
+    information_completeness_score: float
+    information_completeness_reasoning: str
+    non_fabrication_score: float
+    non_fabrication_reasoning: str
+    clarity_and_usability_score: float
+    clarity_and_usability_reasoning: str
+    overall_score: float
+
+
+class EvaluateRenegotiationRequest(BaseModel):
+    human_realism_score: float | None = None
+
+
+class RenegotiationEvaluationResponse(BaseModel):
+    sla_constraint_compliance_score: float
+    sla_constraint_compliance_reasoning: str
+    zopa_compliance_score: float
+    zopa_compliance_reasoning: str
+    stakeholder_profile_alignment_score: float
+    stakeholder_profile_alignment_reasoning: str
+    concession_strategy_coherence_score: float
+    concession_strategy_coherence_reasoning: str
+    utility_consistency_score: float
+    utility_consistency_reasoning: str
+    negotiation_realism_score: float
+    negotiation_realism_reasoning: str
+    overall_score: float
+
+
+class SimulateViolationRequest(BaseModel):
+    event_type: str
+    observed_value: float
 
 
 class SLODefinitionResponse(BaseModel):
     metric: str
     target_value: float
     unit: str
+    description: str
+    event_type: str
+    time_to_repair: int
+
+
+class SLOConfigResponse(BaseModel):
+    metric: str
+    unit: str
+    agreed_value: float
     description: str
     event_type: str
     time_to_repair: int
@@ -35,25 +95,6 @@ class SLADetailResponse(BaseModel):
     slos: list[SLODefinitionResponse]
 
 
-class SubmitClientFormRequest(BaseModel):
-    business_context: str
-    objectives: list[str]
-    priorities: dict[str, float]
-    flexibility_margins: dict[str, float]
-    constraints: list[str]
-    batna: float
-    tone: str = "neutral"
-
-
-class SubmitProviderFormRequest(BaseModel):
-    resource_limitations: list[str]
-    operational_constraints: list[str]
-    priorities: dict[str, float]
-    flexibility_margins: dict[str, float]
-    cost_considerations: str
-    batna: float
-
-
 class WorkflowResponse(BaseModel):
     id: str
     status: str
@@ -62,6 +103,10 @@ class WorkflowResponse(BaseModel):
     max_rounds: int
     proposals: list[dict[str, object]] = Field(default_factory=list)
     rc: dict[str, object] | None = None
+    client_profile: dict[str, object] | None = None
+    provider_profile: dict[str, object] | None = None
+    zopa: dict[str, object] | None = None
+    violation: dict[str, object] | None = None
     created_at: str
     updated_at: str
 
@@ -69,3 +114,12 @@ class WorkflowResponse(BaseModel):
 class ValidateRCRequest(BaseModel):
     accepted: bool
     feedback: str = ""
+
+
+class SLASLOConfigResponse(BaseModel):
+    metric: str
+    unit: str
+    agreed_value: float
+    description: str
+    event_type: str
+    time_to_repair: int

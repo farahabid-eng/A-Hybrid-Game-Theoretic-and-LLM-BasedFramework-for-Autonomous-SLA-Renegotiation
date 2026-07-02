@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getWorkflow, acceptRC, rejectRC } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
+import ReactMarkdown from "react-markdown";
 
 export default function Validation() {
   const { id } = useParams();
@@ -59,7 +60,9 @@ export default function Validation() {
         {rc && (
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-sm font-medium mb-2">Proposed Renegotiation Clause</h3>
-            <pre className="text-xs overflow-x-auto">{JSON.stringify(rc, null, 2)}</pre>
+            <div className="text-gray-800 text-sm [&_p]:m-0">
+              <ReactMarkdown>{rc.clause_text as string}</ReactMarkdown>
+            </div>
           </div>
         )}
       </div>

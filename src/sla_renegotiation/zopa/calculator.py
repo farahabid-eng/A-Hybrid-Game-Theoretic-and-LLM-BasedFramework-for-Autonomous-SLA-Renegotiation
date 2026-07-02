@@ -1,10 +1,8 @@
 from sla_renegotiation.domain.enums import EventType, NegotiationRole
-from sla_renegotiation.domain.models import ZOPA, Proposal, SLODefinition, StakeholderProfile
+from sla_renegotiation.domain.models import ZOPA, Proposal, SLOConfig, SLODefinition
 
 
 def compute_zopa(
-    client_profile: StakeholderProfile,
-    provider_profile: StakeholderProfile,
     violated_event_type: EventType | None = None,
     agreed_value: float | None = None,
     slo_definitions: dict[str, SLODefinition] | None = None,
@@ -12,35 +10,25 @@ def compute_zopa(
     violated_metric = (
         violated_event_type.value.removesuffix("_violation") if violated_event_type else None
     )
-    if not violated_metric:
-        return ZOPA(feasible_range_per_metric={}, description="No violation specified")
-
-    client_batna = client_profile.batna
-    provider_batna = provider_profile.batna
-    if client_batna is None or provider_batna is None:
+    if not violated_metric or agreed_value is None:
         return ZOPA(
-            feasible_range_per_metric={},
-            description=f"Both BATNAs required for ZOPA on {violated_metric}",
+            feasible_range_per_metric={}, description="No violation or agreed value specified"
         )
 
     is_low_better = violated_event_type.is_low_better if violated_event_type else True
+    lo = round(agreed_value * 0.8, 4)
+    hi = round(agreed_value * 1.2, 4)
+    if violated_metric.endswith("%") or (
+        slo_definitions
+        and violated_metric in slo_definitions
+        and slo_definitions[violated_metric].unit == "%"
+    ):
+        lo = max(0.0, lo)
+        hi = min(100.0, hi)
 
-    if is_low_better:
-        lo, hi = provider_batna, client_batna
-    else:
-        lo, hi = client_batna, provider_batna
-
-    if lo > hi:
-        return ZOPA(
-            feasible_range_per_metric={},
-            description="BATNAs do not overlap — no agreement possible",
-        )
-
-    feasible_range = {violated_metric: (round(lo, 4), round(hi, 4))}
-    current_targets = {}
+    feasible_range = {violated_metric: (lo, hi)}
+    current_targets = {violated_metric: agreed_value}
     units = {}
-    if agreed_value is not None:
-        current_targets[violated_metric] = agreed_value
     if slo_definitions and violated_metric in slo_definitions:
         units[violated_metric] = slo_definitions[violated_metric].unit
 
@@ -49,7 +37,47 @@ def compute_zopa(
         units=units,
         current_targets=current_targets,
         low_is_better={violated_metric: is_low_better},
-        description=f"BATNA-based ZOPA for {violated_metric}: {lo} – {hi}",
+        description=f"ZOPA for {violated_metric}: {lo} – {hi}",
+    )
+
+
+def compute_multi_metric_zopa(
+    slo_configs: list[SLOConfig],
+    violated_metric: str | None = None,
+) -> ZOPA:
+    feasible_ranges: dict[str, tuple[float, float]] = {}
+    units: dict[str, str] = {}
+    current_targets: dict[str, float] = {}
+    low_is_better: dict[str, bool] = {}
+
+    for slo in slo_configs:
+        is_low = slo.event_type.is_low_better
+
+        # Default range: ±20% of agreed value
+        val = slo.agreed_value
+        lo = round(val * 0.8, 4)
+        hi = round(val * 1.2, 4)
+
+        # Clamp percentages to valid bounds
+        if slo.unit == "%":
+            lo = max(0.0, lo)
+            hi = min(100.0, hi)
+            if not is_low:  # e.g., availability
+                # Keep the lower bound reasonable (at least 90.0)
+                lo = max(90.0, lo)
+
+        feasible_ranges[slo.metric] = (lo, hi)
+        current_targets[slo.metric] = slo.agreed_value
+        units[slo.metric] = slo.unit
+        low_is_better[slo.metric] = is_low
+
+    violated_info = f" (violated: {violated_metric})" if violated_metric else ""
+    return ZOPA(
+        feasible_range_per_metric=feasible_ranges,
+        units=units,
+        current_targets=current_targets,
+        low_is_better=low_is_better,
+        description=f"Multi-metric ZOPA{violated_info}",
     )
 
 

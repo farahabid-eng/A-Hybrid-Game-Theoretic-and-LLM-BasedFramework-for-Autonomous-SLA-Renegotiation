@@ -12,14 +12,21 @@ class Settings(BaseSettings):
     client_model: str = ""
     provider_model: str = ""
     profiling_model: str = ""
+    judge_model: str = ""
     rc_model: str = ""
 
     max_negotiation_rounds: int = 10
+
+    sla_version: str = "V0.1"
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
     ui_dev_port: int = 5173
+
+    @property
+    def db_path(self) -> str:
+        return f"db/sla_{self.sla_version}.db"
 
 
 settings = Settings()

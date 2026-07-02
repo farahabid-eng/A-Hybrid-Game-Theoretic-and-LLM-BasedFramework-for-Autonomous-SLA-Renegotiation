@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from sla_renegotiation.context_gathering.forms import ClientForm, ProviderForm
 from sla_renegotiation.domain.enums import EventType, RenegotiationStatus
 from sla_renegotiation.domain.models import (
     Proposal,

@@ -29,6 +29,7 @@ class EventType(StrEnum):
         return self in (
             self.LATENCY_VIOLATION,
             self.ERROR_RATE_VIOLATION,
+            self.COST_OVERAGE,
         )
 
 

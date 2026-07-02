@@ -58,6 +58,15 @@ class StakeholderProfile(BaseModel):
     flexibility_margins: dict[str, float]
     context_description: str
     tone: str = "neutral"
+    acceptance_threshold: float = 0.7
+
+
+class ProposalEvaluation(BaseModel):
+    proposal_round: int
+    evaluator_role: NegotiationRole
+    utility_score: float
+    threshold_met: bool
+    accepted: bool
 
 
 class ProfileEvaluationResult(BaseModel):
@@ -162,6 +171,7 @@ class Workflow(BaseModel):
     provider_profile: StakeholderProfile | None = None
     zopa: ZOPA | None = None
     proposals: list[Proposal] = Field(default_factory=list)
+    evaluations: list[ProposalEvaluation] = Field(default_factory=list)
     current_round: int = 0
     rc: RenegotiationClause | None = None
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())

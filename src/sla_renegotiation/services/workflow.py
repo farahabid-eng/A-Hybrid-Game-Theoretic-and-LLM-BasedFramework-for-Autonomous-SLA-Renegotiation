@@ -5,6 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
 from sla_renegotiation.domain.models import (
     ProfileEvaluationResult,
+    ProposalEvaluation,
     RenegotiationClause,
     RenegotiationEvaluationResult,
     SLOConfig,
@@ -18,6 +19,7 @@ from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.evaluator import evaluate_renegotiation as eval_renegotiation
 from sla_renegotiation.negotiation.graph import _format_history
+from sla_renegotiation.negotiation.scoring import compute_utility_score
 from sla_renegotiation.profiles.builder import build_profile
 from sla_renegotiation.profiles.evaluator import evaluate_profile
 from sla_renegotiation.storage.in_memory import WorkflowStore
@@ -298,11 +300,42 @@ class WorkflowService:
             workflow.proposals.append(client_proposal)
         workflow.current_round += 1
 
+        # Dual-gating: compute utility score for client proposal from provider's perspective
+        client_utility_score = 1.0
+        client_threshold_met = True
+        if client_proposal and client_proposal.structured_adjustments:
+            client_utility_score = compute_utility_score(
+                client_proposal,
+                workflow.provider_profile,
+                workflow.zopa,
+                NegotiationRole.PROVIDER,
+            )
+            client_threshold_met = (
+                client_utility_score >= workflow.provider_profile.acceptance_threshold
+            )
+
+        provider_history = _format_history(workflow.proposals)
+        if client_proposal and client_proposal.structured_adjustments:
+            provider_history += (
+                f"\n\nUtility Evaluation: The client's proposal scored "
+                f"{client_utility_score:.4f} (your acceptance threshold: "
+                f"{workflow.provider_profile.acceptance_threshold}). "
+            )
+            if client_threshold_met:
+                provider_history += (
+                    "This meets the threshold — proceed with qualitative assessment."
+                )
+            else:
+                provider_history += (
+                    "This is BELOW the threshold — reject without qualitative review "
+                    "and generate a counter-offer."
+                )
+
         provider_proposal = None
         async for _, proposal in provider_agent.stream_content(
             profile=workflow.provider_profile,
             zopa=round_zopa,
-            history=_format_history(workflow.proposals),
+            history=provider_history,
             current_round=workflow.current_round,
             max_rounds=workflow.max_rounds,
             violated_metric=violated_metric,
@@ -312,12 +345,50 @@ class WorkflowService:
         if provider_proposal:
             workflow.proposals.append(provider_proposal)
 
+        # Dual-gating: compute utility score for provider proposal from client's perspective
+        provider_utility_score = 1.0
+        provider_threshold_met = True
+        if provider_proposal and provider_proposal.structured_adjustments:
+            provider_utility_score = compute_utility_score(
+                provider_proposal,
+                workflow.client_profile,
+                workflow.zopa,
+                NegotiationRole.CLIENT,
+            )
+            provider_threshold_met = (
+                provider_utility_score >= workflow.client_profile.acceptance_threshold
+            )
+
+        # Store evaluations
+        workflow.evaluations.append(
+            ProposalEvaluation(
+                proposal_round=workflow.current_round,
+                evaluator_role=NegotiationRole.PROVIDER,
+                utility_score=round(client_utility_score, 4),
+                threshold_met=client_threshold_met,
+                accepted=False,
+            )
+        )
+        workflow.evaluations.append(
+            ProposalEvaluation(
+                proposal_round=workflow.current_round,
+                evaluator_role=NegotiationRole.CLIENT,
+                utility_score=round(provider_utility_score, 4),
+                threshold_met=provider_threshold_met,
+                accepted=False,
+            )
+        )
+
         if (
             client_proposal
             and provider_proposal
             and check_agreement(client_proposal, provider_proposal)
         ):
             workflow.status = RenegotiationStatus.AGREED
+            # Mark evaluations as accepted
+            for eval_ in workflow.evaluations:
+                if eval_.proposal_round == workflow.current_round:
+                    eval_.accepted = True
         elif workflow.current_round >= workflow.max_rounds:
             workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
         else:

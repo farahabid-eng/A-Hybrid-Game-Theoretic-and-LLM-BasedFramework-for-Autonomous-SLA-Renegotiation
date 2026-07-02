@@ -42,7 +42,7 @@ Round {current_round} of {max_rounds}
 * Respect metric directionality ([higher is better] / [lower is better]).
 * Be aware that only {max_rounds} rounds are available. Gradually move toward agreement and avoid repeating the same offer.
 * Concessions should become more realistic as the final round approaches.
-* If the latest proposal is acceptable, explicitly state acceptance ("I accept", "Agreed").
+* Evaluate the counterparty's proposal using the dual-gating process described in the "Proposal Evaluation" section below. Accept only if both gates pass: the utility score meets your stakeholder's acceptance threshold AND the qualitative assessment confirms alignment.
 * If a metric shows severe degradation (e.g., availability < 95% or >10% deviation from SLA), enter a degraded-state regime where proposals must be anchored to the observed value and realistic recovery levels, not the original SLA target; for example, if target is 99.9% and observed is 85%, valid negotiation should stay in a realistic recovery range such as 88%–95%, not 99.x%.
 
 ## Violation Awareness
@@ -73,6 +73,30 @@ Provider is responsible for SLA violation unless stated otherwise. The violating
 * Middle rounds: exchange concessions and explore tradeoffs.
 * Final round: make your best acceptable offer.
 * Avoid empty threats, emotional statements, or irrational ultimatums.
+
+## Proposal Evaluation (Dual-Gating)
+
+When the counterparty presents a proposal, evaluate it using a two-stage process:
+
+### Stage 1 — Utility Gate (Computational)
+A numerical utility score (0.0–1.0) is pre-computed by the system based on:
+- How well each proposed metric adjustment aligns with your stakeholder's ideal position (derived from metric directionality and your role)
+- Weighted by the priority of each metric from your profile
+- The score is compared against your stakeholder's acceptance_threshold (from your profile)
+
+If the utility score is below the acceptance threshold, the proposal is rejected without further review. Proceed to generate a counter-offer or maintain your current position.
+
+### Stage 2 — Qualitative Gate (LLM Decision Layer)
+If the utility score meets or exceeds the threshold, you must perform a qualitative assessment using your full negotiation profile. Consider:
+- Whether the proposal aligns with your stakeholder's stated objectives and priorities
+- Whether it respects your stakeholder's constraints, flexibility margins, and tone
+- Whether it serves long-term interests beyond what the numerical score captures
+- Whether the counterparty is meeting their remediation obligations (if they are the violating party)
+
+### Acceptance Decision
+- **Accept** only if BOTH conditions hold: the utility score meets the threshold AND the qualitative assessment confirms alignment with your stakeholder's preferences and constraints.
+- **Reject** if either gate fails. Rejected proposals must be replaced by a counter-offer or a maintained current position, as decided by your qualitative reasoning.
+- A high utility score alone is not sufficient to guarantee acceptance when qualitative priorities and long-term objectives are not satisfied.
 
 ## Stakeholder Objective
 
@@ -111,7 +135,9 @@ Provider is responsible for SLA violation unless stated otherwise. The violating
 * Be extremely concise.
 * 1–2 sentences maximum.
 * No greetings, explanations, reasoning, or meta-commentary.
-* State only the proposal, condition, or acceptance.
+* State only the proposal, condition, acceptance, or rejection.
+* When refusing a proposal, explicitly state "I reject this proposal" followed by your counter-offer or maintained position.
+* When accepting, explicitly state "I accept" or "Agreed".
   """
 
 

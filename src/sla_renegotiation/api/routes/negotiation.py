@@ -10,10 +10,12 @@ from sla_renegotiation.api.schemas import (
     RenegotiationEvaluationResponse,
     WorkflowResponse,
 )
-from sla_renegotiation.domain.enums import RenegotiationStatus
+from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
+from sla_renegotiation.domain.models import ProposalEvaluation
 from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
+from sla_renegotiation.negotiation.scoring import compute_utility_score
 from sla_renegotiation.services.workflow import WorkflowService
 
 router = APIRouter(prefix="/workflows/{workflow_id}/negotiation", tags=["negotiation"])
@@ -205,10 +207,60 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                     }
                 )
 
+                client_proposal = workflow.proposals[-1] if workflow.proposals else None
+
+                client_utility_score = 1.0
+                client_threshold_met = True
+                if client_proposal and client_proposal.structured_adjustments:
+                    client_utility_score = compute_utility_score(
+                        client_proposal,
+                        workflow.provider_profile,
+                        workflow.zopa,
+                        NegotiationRole.PROVIDER,
+                    )
+                    client_threshold_met = (
+                        client_utility_score >= workflow.provider_profile.acceptance_threshold
+                    )
+
+                await websocket.send_json(
+                    {
+                        "type": "negotiation.utility",
+                        "role": "client",
+                        "round": round_num,
+                        "utility_score": round(client_utility_score, 4),
+                        "threshold": workflow.provider_profile.acceptance_threshold,
+                        "threshold_met": client_threshold_met,
+                    }
+                )
+
+                provider_history = _format_history(workflow.proposals)
+                if client_proposal and client_proposal.structured_adjustments:
+                    provider_history += (
+                        f"\n\nUtility Evaluation: The client's proposal scored "
+                        f"{client_utility_score:.4f} (your acceptance threshold: "
+                        f"{workflow.provider_profile.acceptance_threshold}). "
+                    )
+                    if client_threshold_met:
+                        provider_history += (
+                            "This meets the threshold — proceed with qualitative assessment."
+                        )
+                    else:
+                        provider_history += (
+                            "This is BELOW the threshold — reject without qualitative review "
+                            "and generate a counter-offer."
+                        )
+
+                await websocket.send_json(
+                    {
+                        "type": "profiling.progress",
+                        "status": f"Provider agent is generating proposal (round {round_num})...",
+                    }
+                )
+
                 async for token, proposal in provider_agent.stream_content(
                     profile=workflow.provider_profile,
                     zopa=round_zopa,
-                    history=_format_history(workflow.proposals),
+                    history=provider_history,
                     current_round=round_num,
                     max_rounds=workflow.max_rounds,
                     violated_metric=violated_metric,
@@ -234,14 +286,64 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                             }
                         )
 
+                provider_proposal = workflow.proposals[-1] if workflow.proposals else None
+
+                provider_utility_score = 1.0
+                provider_threshold_met = True
+                if provider_proposal and provider_proposal.structured_adjustments:
+                    provider_utility_score = compute_utility_score(
+                        provider_proposal,
+                        workflow.client_profile,
+                        workflow.zopa,
+                        NegotiationRole.CLIENT,
+                    )
+                    provider_threshold_met = (
+                        provider_utility_score >= workflow.client_profile.acceptance_threshold
+                    )
+
+                await websocket.send_json(
+                    {
+                        "type": "negotiation.utility",
+                        "role": "provider",
+                        "round": round_num,
+                        "utility_score": round(provider_utility_score, 4),
+                        "threshold": workflow.client_profile.acceptance_threshold,
+                        "threshold_met": provider_threshold_met,
+                    }
+                )
+
+                # Store evaluations
+                workflow.evaluations.append(
+                    ProposalEvaluation(
+                        proposal_round=round_num,
+                        evaluator_role=NegotiationRole.PROVIDER,
+                        utility_score=round(client_utility_score, 4),
+                        threshold_met=client_threshold_met,
+                        accepted=False,
+                    )
+                )
+                workflow.evaluations.append(
+                    ProposalEvaluation(
+                        proposal_round=round_num,
+                        evaluator_role=NegotiationRole.CLIENT,
+                        utility_score=round(provider_utility_score, 4),
+                        threshold_met=provider_threshold_met,
+                        accepted=False,
+                    )
+                )
+
                 proposals = (
                     workflow.proposals[-2:] if len(workflow.proposals) >= 2 else workflow.proposals
                 )
 
-                if len(workflow.proposals) >= 2 and check_agreement(
+                agreement_reached = len(workflow.proposals) >= 2 and check_agreement(
                     workflow.proposals[-2], workflow.proposals[-1]
-                ):
+                )
+                if agreement_reached:
                     workflow.status = RenegotiationStatus.AGREED
+                    for eval_ in workflow.evaluations:
+                        if eval_.proposal_round == round_num:
+                            eval_.accepted = True
                 elif round_num >= workflow.max_rounds:
                     workflow.status = RenegotiationStatus.MAX_ROUNDS_REACHED
                 else:
@@ -255,6 +357,11 @@ async def negotiate_ws(websocket: WebSocket, workflow_id: str) -> None:
                         "type": "negotiation.round",
                         "round": round_num,
                         "proposals": [p.model_dump() for p in proposals],
+                        "evaluations": [
+                            e.model_dump()
+                            for e in workflow.evaluations
+                            if e.proposal_round == round_num
+                        ],
                         "status": workflow.status.value,
                     }
                 )

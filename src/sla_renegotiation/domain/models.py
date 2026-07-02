@@ -26,6 +26,8 @@ class SLOConfig(BaseModel):
     description: str
     event_type: EventType
     time_to_repair: int
+    client_batna: float | None = None
+    provider_batna: float | None = None
 
 
 class SLATemplate(BaseModel):
@@ -56,6 +58,26 @@ class StakeholderProfile(BaseModel):
     flexibility_margins: dict[str, float]
     context_description: str
     tone: str = "neutral"
+
+
+class ProfileEvaluationResult(BaseModel):
+    intent_faithfulness_score: float = Field(description="Score for Intent Faithfulness, 0-100")
+    intent_faithfulness_reasoning: str = Field(description="Reasoning for Intent Faithfulness score")
+    information_completeness_score: float = Field(description="Score for Information Completeness, 0-100")
+    information_completeness_reasoning: str = Field(description="Reasoning for Information Completeness score")
+    non_fabrication_score: float = Field(description="Score for Non-Fabrication, 0-100")
+    non_fabrication_reasoning: str = Field(description="Reasoning for Non-Fabrication score")
+    clarity_and_usability_score: float = Field(description="Score for Clarity and Usability, 0-100")
+    clarity_and_usability_reasoning: str = Field(description="Reasoning for Clarity and Usability score")
+
+    @property
+    def overall_score(self) -> float:
+        return (
+            self.intent_faithfulness_score
+            + self.information_completeness_score
+            + self.non_fabrication_score
+            + self.clarity_and_usability_score
+        ) / 4.0
 
 
 class ZOPA(BaseModel):

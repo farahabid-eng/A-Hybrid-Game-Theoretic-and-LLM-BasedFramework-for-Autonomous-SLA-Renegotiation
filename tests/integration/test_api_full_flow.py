@@ -109,3 +109,48 @@ def test_full_flow_e2e() -> None:
     assert data["violation"]["event_type"] == "latency_violation"
     assert data["client_profile"] is not None
     assert data["provider_profile"] is not None
+
+
+def test_profile_evaluation_endpoint() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from sla_renegotiation.domain.models import ProfileEvaluationResult
+
+    # Create workflow
+    resp = client.post("/workflows", json={"sla_id": "basic-api"})
+    wf_id = resp.json()["id"]
+
+    mock_result = ProfileEvaluationResult(
+        intent_faithfulness_score=80.0,
+        intent_faithfulness_reasoning="Good intent matching.",
+        information_completeness_score=85.0,
+        information_completeness_reasoning="Complete.",
+        non_fabrication_score=90.0,
+        non_fabrication_reasoning="No fabrication.",
+        clarity_and_usability_score=95.0,
+        clarity_and_usability_reasoning="Clear.",
+    )
+
+    mock_runnable = MagicMock()
+    mock_runnable.return_value = mock_result
+    mock_runnable.invoke.return_value = mock_result
+    mock_model = MagicMock()
+    mock_model.with_structured_output.return_value = mock_runnable
+
+    with patch("sla_renegotiation.profiles.evaluator.build_model", return_value=mock_model):
+        payload = {
+            "context": "Gaming client wants to optimize QoS.",
+            "profile": {
+                "role": "client",
+                "objectives": ["Restore QoS"],
+                "priorities": {"latency": 0.5},
+                "flexibility_margins": {"latency": 0.1},
+                "context_description": "Client context",
+                "tone": "neutral",
+            },
+        }
+        resp = client.post(f"/workflows/{wf_id}/profiles/client/evaluate", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent_faithfulness_score"] == 80.0
+        assert data["overall_score"] == 87.5

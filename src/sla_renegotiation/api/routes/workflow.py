@@ -3,7 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sla_renegotiation.api.dependencies import get_workflow_service
 from sla_renegotiation.api.schemas import (
     CreateWorkflowRequest,
+    EvaluateProfileRequest,
     GenerateProfileRequest,
+    ProfileEvaluationResponse,
     SetProfileRequest,
     SimulateViolationRequest,
     SLOConfigResponse,
@@ -131,6 +133,35 @@ def generate_provider_profile(
 ) -> dict[str, object]:
     profile = svc.generate_profile(workflow_id, NegotiationRole.PROVIDER, body.context)
     return profile.model_dump()
+
+
+@router.post("/{workflow_id}/profiles/{role}/evaluate", response_model=ProfileEvaluationResponse)
+def evaluate_stakeholder_profile(
+    workflow_id: str,
+    role: NegotiationRole,
+    body: EvaluateProfileRequest,
+    svc: WorkflowService = Depends(get_workflow_service),
+) -> ProfileEvaluationResponse:
+    try:
+        evaluation = svc.evaluate_profile(
+            workflow_id=workflow_id,
+            role=role,
+            context=body.context,
+            profile=body.profile,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return ProfileEvaluationResponse(
+        intent_faithfulness_score=evaluation.intent_faithfulness_score,
+        intent_faithfulness_reasoning=evaluation.intent_faithfulness_reasoning,
+        information_completeness_score=evaluation.information_completeness_score,
+        information_completeness_reasoning=evaluation.information_completeness_reasoning,
+        non_fabrication_score=evaluation.non_fabrication_score,
+        non_fabrication_reasoning=evaluation.non_fabrication_reasoning,
+        clarity_and_usability_score=evaluation.clarity_and_usability_score,
+        clarity_and_usability_reasoning=evaluation.clarity_and_usability_reasoning,
+        overall_score=evaluation.overall_score,
+    )
 
 
 @router.post("/{workflow_id}/violation", response_model=WorkflowResponse)

@@ -4,6 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from sla_renegotiation.domain.enums import NegotiationRole, RenegotiationStatus
 from sla_renegotiation.domain.models import (
+    ProfileEvaluationResult,
     RenegotiationClause,
     SLOConfig,
     StakeholderProfile,
@@ -16,6 +17,7 @@ from sla_renegotiation.negotiation.agents import client_agent, provider_agent
 from sla_renegotiation.negotiation.agreement import check_agreement
 from sla_renegotiation.negotiation.graph import _format_history
 from sla_renegotiation.profiles.builder import build_profile
+from sla_renegotiation.profiles.evaluator import evaluate_profile
 from sla_renegotiation.storage.in_memory import WorkflowStore
 from sla_renegotiation.storage.sla_seeds import get_sla
 from sla_renegotiation.zopa.calculator import compute_multi_metric_zopa
@@ -145,6 +147,24 @@ class WorkflowService:
         workflow = self._store.get(workflow_id)
         sla = get_sla(workflow.sla_id) if workflow and workflow.sla_id else None
         return build_profile(context, role, sla=sla, slo_configs=slo_configs)
+
+    def evaluate_profile(
+        self,
+        workflow_id: str,
+        role: NegotiationRole,
+        context: str,
+        profile: StakeholderProfile,
+    ) -> ProfileEvaluationResult:
+        slo_configs = self._store.get_slo_configs(workflow_id)
+        workflow = self._store.get(workflow_id)
+        sla = get_sla(workflow.sla_id) if workflow and workflow.sla_id else None
+        return evaluate_profile(
+            context,
+            role,
+            profile,
+            sla=sla,
+            slo_configs=slo_configs,
+        )
 
     def simulate_violation(
         self,

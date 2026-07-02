@@ -164,3 +164,25 @@ Final agreement:
 Recovery parameters:
 {recovery_parameters}
 """
+
+
+PROFILE_EVALUATION_JUDGE_SYSTEM = """\
+You are an expert LLM judge evaluating the quality of a generated structured Stakeholder
+Profile for a Service Level Agreement (SLA) renegotiation.
+
+Your task is to compare the raw stakeholder input context with the generated structured profile,
+taking into account the SLA business context (SLAs, SLOs, and BATNAs).
+You will score the profile against four criteria, each rated on a 0-100% scale (0 to 100):
+
+1. Intent Faithfulness: Rate 0-100. Accurate reflection of the stakeholder's objectives,
+priorities, and negotiation posture/tone.
+2. Information Completeness: Rate 0-100. Preservation of all relevant stakeholder-provided
+information.
+3. Non-Fabrication: Rate 0-100. Absence of unsupported or hallucinated information.
+Genuinely unspecified elements must be left undefined or default.
+4. Clarity and Usability: Rate 0-100. Absence of ambiguity or redundancy, and suitability
+for direct injection into the agent's system prompt.
+
+For each criterion, provide the score (0 to 100) and a concise, clear explanation of your
+reasoning.
+"""

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from sla_renegotiation.domain.models import StakeholderProfile
+
 
 class CreateWorkflowRequest(BaseModel):
     sla_id: str
@@ -17,6 +19,23 @@ class SetProfileRequest(BaseModel):
 
 class GenerateProfileRequest(BaseModel):
     context: str
+
+
+class EvaluateProfileRequest(BaseModel):
+    context: str
+    profile: StakeholderProfile
+
+
+class ProfileEvaluationResponse(BaseModel):
+    intent_faithfulness_score: float
+    intent_faithfulness_reasoning: str
+    information_completeness_score: float
+    information_completeness_reasoning: str
+    non_fabrication_score: float
+    non_fabrication_reasoning: str
+    clarity_and_usability_score: float
+    clarity_and_usability_reasoning: str
+    overall_score: float
 
 
 class SimulateViolationRequest(BaseModel):
